@@ -1,0 +1,730 @@
+<template>
+  <div class="detail-page">
+    <div class="full-meaning-page" if="{{viewMode === 'fullMeaning'}}">
+      <div class="full-topbar">
+        <text class="full-back" onclick="closeFullMeaning">←</text>
+        <text class="full-title">{{fullTitle}}</text>
+        <text class="full-spacer"></text>
+      </div>
+      <text class="full-sign-title">{{sign.title}}</text>
+      <text class="full-story">{{sign.story}}</text>
+      <div class="full-rule"></div>
+      <scroll class="full-scroll" scroll-y="true" bounces="true">
+        <div class="full-scroll-inner">
+          <text class="full-body">{{fullText}}</text>
+        </div>
+      </scroll>
+    </div>
+
+    <div class="paper-bg" if="{{viewMode === 'detail'}}"></div>
+
+    <div class="topbar" if="{{viewMode === 'detail'}}">
+      <text class="back" onclick="goBack">‹</text>
+      <text class="title">{{sign.title}}</text>
+      <text class="top-spacer"></text>
+    </div>
+
+    <div class="tabs" if="{{viewMode === 'detail'}}">
+      <text class="{{tab === 'explain' ? 'tab tab-active' : 'tab'}}" onclick="showExplain">解签</text>
+      <text class="{{tab === 'poemExplain' ? 'tab tab-active' : 'tab'}}" onclick="showPoemExplain">解诗</text>
+      <text class="{{tab === 'meaning' ? 'tab tab-active' : 'tab'}}" onclick="showMeaning">解曰</text>
+    </div>
+
+    <div class="detail-content poem-content" if="{{viewMode === 'detail' && tab === 'explain'}}">
+      <text class="story-title">{{sign.story}}</text>
+      <div class="ornament">
+        <div class="ornament-dot"></div>
+        <div class="ornament-line"></div>
+        <div class="ornament-dot"></div>
+      </div>
+      <div class="poem-card">
+        <text class="small-muted">签  文</text>
+        <text class="poem-line" for="{{line in oracleLines}}">{{line}}</text>
+        <text class="touch-tip">点击逐句查看注解</text>
+      </div>
+      <div class="summary-card">
+        <div class="section-head">
+          <text class="section-title">解签</text>
+          <text class="expand" onclick="showFullExplain">展开 ›</text>
+        </div>
+        <text class="summary-copy">{{shortExplain}}</text>
+      </div>
+    </div>
+
+    <div class="detail-content poem-explain-content" if="{{viewMode === 'detail' && tab === 'poemExplain'}}">
+      <div class="poem-card poem-say-card">
+        <text class="small-muted">诗  曰</text>
+        <text class="poem-line poem-say-line" for="{{line in poemSayLines}}">{{line}}</text>
+      </div>
+      <div class="summary-card poem-summary">
+        <div class="section-head">
+          <text class="section-title">解诗</text>
+          <text class="expand" onclick="showFullPoemExplain">展开 ›</text>
+        </div>
+        <text class="summary-copy">{{shortPoemExplain}}</text>
+      </div>
+    </div>
+
+    <div class="detail-content meaning-content" if="{{viewMode === 'detail' && tab === 'meaning'}}">
+      <div class="grid-bg"></div>
+      <scroll class="meaning-scroll" scroll-y="true">
+        <div class="meaning-scroll-inner">
+          <div class="{{item.rowClass}}" for="{{item in categories}}">
+            <div class="row-accent"></div>
+            <text class="meaning-name">{{item.name}}</text>
+            <text class="{{item.textClass}}">{{item.text}}</text>
+          </div>
+        </div>
+      </scroll>
+      <div class="exit-button" onclick="exitApp">
+        <text class="exit-text">退出</text>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+import router from "@system.router"
+import storage from "@system.storage"
+import vibrator from "@system.vibrator"
+import app from "@system.app"
+import { signs } from "../../common/signs.js"
+
+export default {
+  private: {
+    viewMode: "detail",
+    tab: "explain",
+    sign: signs[98],
+    oracleLines: [],
+    poemSayLines: [],
+    categories: [],
+    shortPoemExplain: "",
+    shortExplain: "",
+    fullTitle: "全部释义",
+    fullText: "",
+    finalWord: "求得此签，诸事循序渐进"
+  },
+
+  onInit() {
+    this.loadSign()
+  },
+
+  doVibrate() {
+    try {
+      vibrator.vibrate({ mode: "short" })
+    } catch (e) {
+      console.log("vibrate failed")
+    }
+  },
+
+  loadSign() {
+    storage.get({
+      key: "lvzu_current_sign",
+      default: "99",
+      success: data => {
+        const id = parseInt(data, 10) || 99
+        this.setSign(signs[id - 1] || signs[98])
+      },
+      fail: () => {
+        this.setSign(signs[98])
+      }
+    })
+  },
+
+  setSign(sign) {
+    this.sign = sign
+    this.oracleLines = this.splitText(sign.oracle, 4)
+    this.poemSayLines = this.splitText(sign.poem && sign.poem.length ? sign.poem.join("，") : "", 4)
+    this.categories = (sign.categories || []).slice(0, 8).map(item => this.buildMeaningRow(item))
+    this.shortPoemExplain = this.clip(sign.poemExplain || "", 58)
+    this.shortExplain = this.clip(sign.explain || "", 58)
+    this.fullTitle = "全部释义"
+    this.fullText = ""
+    this.viewMode = "detail"
+    this.finalWord = this.buildFinalWord(sign)
+  },
+
+  splitText(text, max) {
+    return (text || "").split(/[，；。;]/).map(item => item.trim()).filter(Boolean).slice(0, max)
+  },
+
+  buildMeaningRow(item) {
+    const text = item.text || ""
+    const len = text.length
+    const rowClass = len > 20 ? "meaning-row meaning-row-3" : len > 10 ? "meaning-row meaning-row-2" : "meaning-row"
+    const textClass = len > 20 ? "meaning-text meaning-text-3" : len > 10 ? "meaning-text meaning-text-2" : "meaning-text"
+    return {
+      name: item.name,
+      text,
+      rowClass,
+      textClass
+    }
+  },
+
+  clip(text, max) {
+    if (!text) return ""
+    return text.length > max ? text.slice(0, max) + "..." : text
+  },
+
+  buildFinalWord(sign) {
+    const first = sign.categories && sign.categories[0]
+    if (!first) return "求得此签，宜静心守正"
+    return "求得此签，" + first.text.replace(/[。.]$/, "")
+  },
+
+  showExplain() {
+    this.doVibrate()
+    this.tab = "explain"
+  },
+
+  showPoemExplain() {
+    this.doVibrate()
+    this.tab = "poemExplain"
+  },
+
+  showFullExplain() {
+    this.doVibrate()
+    this.fullTitle = "全部解签"
+    this.fullText = this.sign.explain || ""
+    this.viewMode = "fullMeaning"
+  },
+
+  showFullPoemExplain() {
+    this.doVibrate()
+    this.fullTitle = "全部解诗"
+    this.fullText = this.sign.poemExplain || ""
+    this.viewMode = "fullMeaning"
+  },
+
+  closeFullMeaning() {
+    this.doVibrate()
+    this.viewMode = "detail"
+  },
+
+  showMeaning() {
+    this.doVibrate()
+    this.tab = "meaning"
+  },
+
+  goBack() {
+    this.doVibrate()
+    if (this.viewMode === "fullMeaning") {
+      this.viewMode = "detail"
+      return
+    }
+    router.back()
+  },
+
+  exitApp() {
+    this.doVibrate()
+    app.terminate()
+  }
+}
+</script>
+
+<style>
+.detail-page {
+  width: 100%;
+  height: 100%;
+  flex-direction: column;
+  align-items: center;
+  background-color: #000000;
+}
+
+.full-meaning-page {
+  width: 100%;
+  height: 100%;
+  padding-left: 14px;
+  padding-right: 14px;
+  padding-top: 34px;
+  padding-bottom: 12px;
+  flex-direction: column;
+  align-items: center;
+  background-color: #000000;
+}
+
+.full-topbar {
+  width: 100%;
+  height: 40px;
+  flex-direction: row;
+  align-items: center;
+}
+
+.full-back {
+  width: 38px;
+  color: #a7a7af;
+  font-size: 24px;
+  line-height: 40px;
+  text-align: left;
+}
+
+.full-title {
+  flex: 1;
+  color: #d7b760;
+  font-size: 23px;
+  text-align: center;
+}
+
+.full-spacer {
+  width: 34px;
+}
+
+.full-sign-title {
+  width: 184px;
+  margin-top: 10px;
+  color: #d7b760;
+  font-size: 21px;
+  line-height: 28px;
+  text-align: center;
+}
+
+.full-story {
+  width: 184px;
+  margin-top: 7px;
+  color: #8f909a;
+  font-size: 16px;
+  line-height: 22px;
+  text-align: center;
+}
+
+.full-rule {
+  width: 150px;
+  height: 1px;
+  margin-top: 12px;
+  margin-bottom: 10px;
+  background-color: #40351d;
+}
+
+.full-scroll {
+  width: 184px;
+  height: 300px;
+}
+
+.full-scroll-inner {
+  width: 184px;
+  height: 760px;
+  flex-direction: column;
+  padding-bottom: 80px;
+}
+
+.full-body {
+  width: 184px;
+  height: 680px;
+  color: #d4d1cf;
+  font-size: 17px;
+  line-height: 25px;
+}
+
+.paper-bg {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background-color: #050507;
+}
+
+.topbar {
+  width: 184px;
+  height: 44px;
+  margin-top: 20px;
+  padding-left: 0px;
+  padding-right: 0px;
+  flex-direction: row;
+  align-items: center;
+  border-bottom-width: 1px;
+  border-bottom-color: #22242d;
+}
+
+.back,
+.top-spacer {
+  width: 34px;
+}
+
+.back {
+  color: #a7a7af;
+  font-size: 30px;
+  text-align: center;
+}
+
+.title {
+  flex: 1;
+  color: #d7b760;
+  font-size: 19px;
+  text-align: center;
+  font-weight: normal;
+}
+
+.tabs {
+  width: 184px;
+  height: 42px;
+  flex-direction: row;
+  background-color: rgba(7, 8, 16, 0.72);
+  border-bottom-width: 1px;
+  border-bottom-color: #1d1f28;
+}
+
+.tab {
+  width: 61px;
+  height: 42px;
+  color: #8c8d99;
+  font-size: 18px;
+  text-align: center;
+}
+
+.tab-active {
+  color: #d7b760;
+  border-bottom-width: 3px;
+  border-bottom-color: #d7b760;
+}
+
+.detail-content {
+  width: 184px;
+  flex: 1;
+  flex-direction: column;
+  padding-left: 0px;
+  padding-right: 0px;
+  padding-top: 12px;
+  padding-bottom: 10px;
+  align-items: center;
+}
+
+.poem-content {
+  flex-direction: column;
+  align-items: center;
+}
+
+.story-title {
+  width: 184px;
+  color: #aaaab4;
+  font-size: 15px;
+  line-height: 20px;
+  text-align: center;
+}
+
+.ornament {
+  width: 132px;
+  height: 12px;
+  margin-top: 6px;
+  margin-bottom: 7px;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+}
+
+.ornament-line {
+  width: 100px;
+  height: 2px;
+  background-color: #d7b760;
+}
+
+.ornament-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 4px;
+  background-color: #d7b760;
+}
+
+.poem-card {
+  width: 184px;
+  height: 168px;
+  flex-direction: column;
+  border-width: 2px;
+  border-color: #d7b760;
+  border-radius: 8px;
+  background-color: #0c0d18;
+  align-items: center;
+  justify-content: center;
+}
+
+.small-muted {
+  color: #9c9daa;
+  font-size: 14px;
+  text-align: center;
+}
+
+.poem-line {
+  width: 174px;
+  height: 26px;
+  margin-top: 4px;
+  color: #ffffff;
+  font-size: 20px;
+  line-height: 26px;
+  text-align: center;
+  font-weight: normal;
+}
+
+.touch-tip {
+  margin-top: 5px;
+  color: #8e8f9a;
+  font-size: 12px;
+  text-align: center;
+}
+
+.summary-card {
+  width: 184px;
+  height: 104px;
+  flex-direction: column;
+  margin-top: 9px;
+  padding-left: 3px;
+  padding-right: 3px;
+  padding-top: 0px;
+  background-color: rgba(0, 0, 0, 0);
+}
+
+.section-head {
+  width: 100%;
+  height: 30px;
+  flex-direction: row;
+  align-items: center;
+}
+
+.bar {
+  width: 5px;
+  height: 24px;
+  border-radius: 3px;
+  background-color: #d7b760;
+}
+
+.section-title {
+  width: 92px;
+  color: #d7b760;
+  font-size: 18px;
+}
+
+.percent {
+  margin-left: 6px;
+  color: #999aa6;
+  font-size: 15px;
+}
+
+.expand {
+  flex: 1;
+  color: #999aa6;
+  font-size: 16px;
+  text-align: right;
+}
+
+.summary-copy {
+  width: 178px;
+  margin-top: 4px;
+  color: #d4d1cf;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.poem-explain-content {
+  flex-direction: column;
+  align-items: center;
+}
+
+.back-line {
+  width: 184px;
+  height: 28px;
+  flex-direction: row;
+  align-items: center;
+}
+
+.inline-back {
+  width: 28px;
+  color: #a7a7af;
+  font-size: 26px;
+  line-height: 28px;
+  text-align: left;
+}
+
+.back-line-title {
+  flex: 1;
+  color: #d7b760;
+  font-size: 18px;
+  line-height: 24px;
+  text-align: center;
+}
+
+.poem-say-card {
+  height: 156px;
+  margin-top: 8px;
+}
+
+.poem-say-line {
+  font-size: 19px;
+}
+
+.poem-summary {
+  height: 132px;
+  margin-top: 12px;
+}
+
+.expanded-copy {
+  font-size: 14px;
+  line-height: 19px;
+}
+
+.primary-btn,
+.outline-btn {
+  width: 166px;
+  height: 38px;
+  margin-top: 10px;
+  border-radius: 19px;
+  font-size: 19px;
+  font-weight: bold;
+}
+
+.primary-btn {
+  color: #1a1400;
+  background-color: #d7b760;
+}
+
+.explain-content {
+  align-items: stretch;
+}
+
+.script-bg,
+.grid-bg {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0);
+}
+
+.section-block {
+  width: 100%;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+.second-block {
+  margin-top: 18px;
+}
+
+.body-copy {
+  margin-top: 8px;
+  color: #f4f0eb;
+  font-size: 19px;
+  line-height: 31px;
+}
+
+.fade {
+  width: 100%;
+  height: 46px;
+  margin-top: 4px;
+  background-color: rgba(255, 255, 255, 0.12);
+}
+
+.meaning-content {
+  flex-direction: column;
+  align-items: center;
+}
+
+.meaning-scroll {
+  width: 184px;
+  height: 330px;
+}
+
+.meaning-scroll-inner {
+  width: 184px;
+  flex-direction: column;
+  padding-bottom: 30px;
+}
+
+.meaning-row {
+  width: 184px;
+  height: 42px;
+  flex-direction: row;
+  align-items: center;
+  border-bottom-width: 1px;
+  border-bottom-color: rgba(142, 143, 156, 0.25);
+}
+
+.meaning-row-2 {
+  height: 72px;
+}
+
+.meaning-row-3 {
+  height: 102px;
+}
+
+.row-accent {
+  width: 4px;
+  height: 26px;
+  border-radius: 3px;
+  background-color: rgba(215, 183, 96, 0.35);
+}
+
+.meaning-name {
+  width: 46px;
+  height: 30px;
+  color: #d7b760;
+  font-size: 16px;
+  line-height: 30px;
+  text-align: center;
+}
+
+.divider {
+  width: 10px;
+  height: 28px;
+  color: #777887;
+  font-size: 14px;
+  line-height: 28px;
+  text-align: center;
+}
+
+.meaning-text {
+  width: 132px;
+  height: 28px;
+  color: #f4f0eb;
+  font-size: 15px;
+  line-height: 28px;
+}
+
+.meaning-text-2 {
+  height: 58px;
+  line-height: 29px;
+}
+
+.meaning-text-3 {
+  height: 84px;
+  line-height: 28px;
+}
+
+.exit-button {
+  width: 82px;
+  height: 28px;
+  margin-top: 8px;
+  border-radius: 28px;
+  background-color: #b52a24;
+  align-items: center;
+  justify-content: center;
+}
+
+.exit-text {
+  width: 82px;
+  height: 28px;
+  color: #ffffff;
+  font-size: 15px;
+  line-height: 28px;
+  text-align: center;
+}
+
+.thin-line {
+  width: 100%;
+  height: 1px;
+  margin-top: 12px;
+  background-color: rgba(142, 143, 156, 0.35);
+}
+
+.final-word {
+  width: 100%;
+  margin-top: 15px;
+  color: #d7b760;
+  font-size: 16px;
+  line-height: 23px;
+  text-align: center;
+}
+
+.outline-btn {
+  align-self: center;
+  color: #d7b760;
+  background-color: rgba(0, 0, 0, 0);
+  border-width: 2px;
+  border-color: #d7b760;
+}
+</style>

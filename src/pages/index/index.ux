@@ -1,0 +1,1200 @@
+<template>
+  <div class="page">
+    <div class="screen" if="{{step === 'cleanse'}}">
+      <div class="dots">
+        <div class="dot active"></div>
+        <div class="dot"></div>
+        <div class="dot"></div>
+        <div class="dot"></div>
+      </div>
+      <div class="top-rule"></div>
+      <text class="eyebrow">仪式准备</text>
+      <text class="step-title">第一步</text>
+      <text class="action-title">净  身</text>
+      <div class="gold-rule calm-gold-rule"></div>
+      <image class="cleanse-art" src="/common/cleanse-hands-new.png"></image>
+      <text class="copy copy-main">请先洗净双手</text>
+      <text class="copy copy-main second">以表对仙师之尊敬</text>
+      <text class="copy copy-muted">心神方可感应灵签</text>
+      <div class="bottom-rule"></div>
+      <div class="primary-btn" onclick="goCalm">
+        <text class="primary-btn-text">已洁净，继续</text>
+      </div>
+    </div>
+
+    <div class="screen calm-screen" if="{{step === 'calm'}}">
+      <div class="dots"><div class="dot active"></div><div class="dot active"></div><div class="dot"></div><div class="dot"></div></div>
+      <div class="top-rule"></div>
+      <text class="eyebrow">仪式准备</text>
+      <text class="step-title">第二步</text>
+      <text class="action-title">静  心</text>
+      <div class="gold-rule"></div>
+      <div class="calm-ring">
+        <div class="ring-muted"></div>
+        <div class="ring-glow"></div>
+        <image class="pray-image" src="/common/calm-pray-hands.png"></image>
+        <text class="count-num">{{calmCountdown}}</text>
+      </div>
+      <text class="copy copy-main calm-copy-main">请闭眼，双手合十</text>
+      <div class="chant-box">
+        <text class="chant-hint">在心中默念三遍</text>
+        <div class="chant-lines">
+          <text class="chant-main">吕祖仙师</text>
+          <text class="chant-main chant-main-second">指点迷津</text>
+        </div>
+      </div>
+      <text class="copy copy-muted calm-footer">默念完成后自动继续</text>
+    </div>
+
+    <div class="screen statement-screen" if="{{step === 'statement'}}">
+      <div class="dots"><div class="dot active"></div><div class="dot active"></div><div class="dot active"></div><div class="dot"></div></div>
+      <div class="top-rule"></div>
+      <text class="eyebrow">仪式准备</text>
+      <text class="step-title">第三步</text>
+      <text class="action-title">陈  述</text>
+      <div class="gold-rule"></div>
+      <text class="copy copy-muted statement-hint">请在心中依次默想以下内容</text>
+      <text class="wish">◆ 你的姓名</text>
+      <text class="wish">◆ 出生年月日时</text>
+      <text class="wish">◆ 现居住地址</text>
+      <text class="wish gold">◆ 今日所求之事</text>
+      <div class="primary-btn" onclick="goNotice">
+        <text class="primary-btn-text">已陈述完毕</text>
+      </div>
+    </div>
+
+    <div class="screen notice-screen" if="{{step === 'notice'}}">
+      <div class="dots"><div class="dot active"></div><div class="dot active"></div><div class="dot active"></div><div class="dot active"></div></div>
+      <div class="top-rule"></div>
+      <text class="danger-title">求签须知</text>
+      <text class="notice-icon">☯</text>
+      <text class="warn">今日只可求签一次</text>
+      <text class="warn">同一事不可重复问签</text>
+      <text class="warn">戏谑之心求之不灵</text>
+      <text class="sincere">心  诚  则  灵</text>
+      <div class="notice-btn" onclick="goDraw">
+        <text class="notice-btn-line">我已知晓</text>
+        <text class="notice-btn-line notice-btn-line-second">诚心求签</text>
+      </div>
+    </div>
+
+    <div class="screen draw-screen" if="{{step === 'draw'}}">
+      <div class="draw-nav">
+        <text class="draw-back" onclick="backPrepare">‹</text>
+        <text class="draw-title">吕祖灵签</text>
+        <text class="draw-spacer"></text>
+      </div>
+      <div class="draw-rule"></div>
+      <text class="draw-main">诚心摇动手环</text>
+      <text class="draw-sub">或点击签筒求签</text>
+      <image class="draw-tube-image" src="/common/draw-tube.png"></image>
+      <div class="draw-sensing-row">
+        <image class="draw-wave" src="/common/draw-sensing-wave.png"></image>
+        <text class="draw-sensing-text">感应摇动中</text>
+      </div>
+      <image class="draw-button-image" src="/common/draw-button-aura.png" onclick="startDraw"></image>
+    </div>
+
+    <div class="screen sensing-screen" if="{{step === 'sensing'}}">
+      <text class="sensing-top">‹ 感应中... ›</text>
+      <image class="sensing-oracle" src="/common/sensing-oracle.png"></image>
+      <text class="sensing-gold">天地人三才感应</text>
+      <text class="sense-title">灵签降示</text>
+      <text class="sensing-wait">稍候片刻</text>
+      <image class="sensing-progress" src="/common/sensing-progress-glow.png"></image>
+      <text class="sensing-footer">正在与仙师感应{{sensingDots}}</text>
+    </div>
+
+    <div class="screen result-screen" if="{{step === 'result'}}" onswipe="handleResultSwipe">
+      <div class="result-heading">
+        <div class="result-heading-line"></div>
+        <text class="result-heading-text">吕祖显示</text>
+        <div class="result-heading-line"></div>
+      </div>
+      <div class="result-card">
+        <image class="result-frame" src="/common/result-frame.png"></image>
+        <div class="result-content">
+          <text class="result-prefix">第</text>
+          <text class="result-number">{{selectedSignNumber}}</text>
+          <text class="result-suffix">签</text>
+          <div class="result-title-rule"></div>
+          <text class="result-story">{{selectedSign.story}}</text>
+        </div>
+      </div>
+      <text class="result-hint">上滑查看签文详解</text>
+      <image class="result-arrows" src="/common/result-light.png"></image>
+      <div class="result-bottom-rule"></div>
+      <image class="result-button" src="/common/result-swipe.png" onclick="openDetail"></image>
+    </div>
+  </div>
+</template>
+<script>
+import router from "@system.router"
+import storage from "@system.storage"
+import vibrator from "@system.vibrator"
+import { signs } from "../../common/signs.js"
+
+const DRAW_KEY = "lvzu_today_draw"
+const CN_DIGITS = ["零", "一", "二", "三", "四", "五", "六", "七", "八", "九"]
+
+function todayKey() {
+  const date = new Date()
+  const month = date.getMonth() + 1
+  const day = date.getDate()
+  return date.getFullYear() + "-" + (month < 10 ? "0" + month : month) + "-" + (day < 10 ? "0" + day : day)
+}
+
+function toChineseNumber(num) {
+  if (num <= 10) return num === 10 ? "十" : CN_DIGITS[num]
+  if (num < 20) return "十" + CN_DIGITS[num % 10]
+  const ten = Math.floor(num / 10)
+  const one = num % 10
+  return CN_DIGITS[ten] + "十" + (one ? CN_DIGITS[one] : "")
+}
+
+export default {
+  private: {
+    step: "cleanse",
+    prepareIndex: 0,
+    calmCountdown: 6,
+    selectedSign: signs[98],
+    selectedSignNumber: toChineseNumber(signs[98].id),
+    isDrawing: false,
+    calmTimer: null,
+    senseTimer: null,
+    sensingDots: ".",
+    sensingDotsTimer: null
+  },
+
+  onInit() {
+    this.step = "cleanse"
+    this.prepareIndex = 0
+  },
+
+  onDestroy() {
+    this.clearTimers()
+  },
+
+  tap() {
+    try {
+      vibrator.vibrate({ mode: "short" })
+    } catch (e) {
+      console.log("vibrate failed")
+    }
+  },
+
+  restoreToday() {
+    storage.get({
+      key: DRAW_KEY,
+      default: "",
+      success: data => {
+        if (!data) return
+        try {
+          const record = JSON.parse(data)
+          if (record.date === todayKey() && record.signId) {
+            this.selectedSign = signs[record.signId - 1] || signs[0]
+            this.selectedSignNumber = toChineseNumber(this.selectedSign.id)
+            this.step = "result"
+          }
+        } catch (e) {
+          console.log("invalid draw cache")
+        }
+      }
+    })
+  },
+
+  saveToday(sign) {
+    storage.set({
+      key: DRAW_KEY,
+      value: JSON.stringify({
+        date: todayKey(),
+        signId: sign.id
+      })
+    })
+    storage.set({
+      key: "lvzu_current_sign",
+      value: String(sign.id)
+    })
+  },
+
+  clearTimers() {
+    if (this.calmTimer) {
+      clearInterval(this.calmTimer)
+      this.calmTimer = null
+    }
+    if (this.senseTimer) {
+      clearTimeout(this.senseTimer)
+      this.senseTimer = null
+    }
+    if (this.sensingDotsTimer) {
+      clearInterval(this.sensingDotsTimer)
+      this.sensingDotsTimer = null
+    }
+  },
+
+  goCalm() {
+    this.tap()
+    this.step = "calm"
+    this.prepareIndex = 1
+    this.calmCountdown = 6
+    if (this.calmTimer) clearInterval(this.calmTimer)
+    this.calmTimer = setInterval(() => {
+      this.calmCountdown -= 1
+      if (this.calmCountdown <= 0) {
+        clearInterval(this.calmTimer)
+        this.calmTimer = null
+        this.step = "statement"
+        this.prepareIndex = 2
+      }
+    }, 1000)
+  },
+
+  goNotice() {
+    this.tap()
+    this.step = "notice"
+    this.prepareIndex = 3
+  },
+
+  goDraw() {
+    this.tap()
+    this.step = "draw"
+  },
+
+  backPrepare() {
+    this.tap()
+    this.step = "statement"
+    this.prepareIndex = 2
+  },
+
+  startDraw() {
+    if (this.isDrawing) return
+    this.tap()
+    this.isDrawing = true
+    this.step = "sensing"
+    this.startSensingDots()
+    const index = Math.floor(Math.random() * signs.length)
+    this.selectedSign = signs[index]
+    this.selectedSignNumber = toChineseNumber(this.selectedSign.id)
+    this.saveToday(this.selectedSign)
+    this.senseTimer = setTimeout(() => {
+      this.tap()
+      this.step = "result"
+      this.isDrawing = false
+      this.senseTimer = null
+      if (this.sensingDotsTimer) {
+        clearInterval(this.sensingDotsTimer)
+        this.sensingDotsTimer = null
+      }
+    }, 2800)
+  },
+
+  startSensingDots() {
+    let count = 1
+    this.sensingDots = "."
+    if (this.sensingDotsTimer) clearInterval(this.sensingDotsTimer)
+    this.sensingDotsTimer = setInterval(() => {
+      count = count >= 3 ? 1 : count + 1
+      this.sensingDots = count === 1 ? "." : count === 2 ? ".." : "..."
+    }, 420)
+  },
+
+  openDetail() {
+    this.tap()
+    storage.set({
+      key: "lvzu_current_sign",
+      value: String(this.selectedSign.id),
+      complete: () => {
+        router.push({
+          uri: "/pages/detail"
+        })
+      }
+    })
+  },
+
+  handleResultSwipe() {
+    this.openDetail()
+  }
+}
+</script>
+
+<style>
+.page {
+  width: 100%;
+  height: 100%;
+  background-color: #050715;
+}
+
+.screen {
+  width: 100%;
+  height: 100%;
+  padding-left: 12px;
+  padding-right: 12px;
+  padding-top: 16px;
+  padding-bottom: 18px;
+  align-items: center;
+  flex-direction: column;
+  background-color: #050715;
+}
+
+.dots {
+  width: 96px;
+  height: 18px;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  margin-left: 6px;
+  margin-right: 6px;
+  border-radius: 4px;
+  background-color: #343849;
+}
+
+.active {
+  background-color: #d8b75e;
+}
+
+.top-rule,
+.bottom-rule {
+  width: 170px;
+  height: 1px;
+  background-color: rgba(114, 122, 154, 0.35);
+}
+
+.top-rule {
+  margin-top: 4px;
+  margin-bottom: 14px;
+}
+
+.eyebrow {
+  color: #8e909d;
+  font-size: 16px;
+  text-align: center;
+}
+
+.step-title {
+  margin-top: 8px;
+  color: #d8b75e;
+  font-size: 34px;
+  font-weight: bold;
+  text-align: center;
+}
+
+.action-title {
+  margin-top: 1px;
+  color: #f4f0eb;
+  font-size: 29px;
+  font-weight: bold;
+  text-align: center;
+}
+
+.gold-rule {
+  width: 90px;
+  height: 2px;
+  margin-top: 8px;
+  margin-bottom: 10px;
+  border-radius: 1px;
+  background-color: #d8b75e;
+}
+
+.cleanse-art {
+  width: 158px;
+  height: 162px;
+  margin-top: 4px;
+  margin-bottom: 12px;
+}
+
+.copy {
+  width: 188px;
+  text-align: center;
+}
+
+.copy-main {
+  color: #ffffff;
+  font-size: 21px;
+  line-height: 27px;
+}
+
+.second {
+  margin-top: 4px;
+}
+
+.copy-muted {
+  margin-top: 8px;
+  color: #8f909d;
+  font-size: 18px;
+  line-height: 23px;
+}
+
+.bottom-rule {
+  margin-top: 13px;
+  margin-bottom: 10px;
+}
+
+.primary-btn,
+.danger-btn {
+  width: 160px;
+  height: 42px;
+  border-radius: 21px;
+  font-size: 19px;
+  font-weight: bold;
+}
+
+.primary-btn {
+  color: #1a1400;
+  background-color: #d8b75e;
+}
+
+.calm-ring {
+  width: 150px;
+  height: 150px;
+  margin-top: 12px;
+  margin-bottom: 14px;
+  border-width: 9px;
+  border-color: #d8b75e;
+  border-radius: 75px;
+  align-items: center;
+  justify-content: center;
+  background-color: #11183b;
+}
+
+.pray-symbol {
+  color: #d8b75e;
+  font-size: 24px;
+}
+
+.count-num {
+  margin-top: 8px;
+  color: #d8b75e;
+  font-size: 36px;
+}
+
+.chant-line,
+.wish,
+.gold-text {
+  width: 178px;
+  margin-top: 12px;
+  color: #d8b75e;
+  font-size: 20px;
+  text-align: center;
+}
+
+.statement-hint {
+  margin-top: 18px;
+  margin-bottom: 8px;
+}
+
+.wish {
+  color: #ffffff;
+  font-size: 21px;
+  text-align: left;
+}
+
+.gold {
+  color: #d8b75e;
+  margin-bottom: 18px;
+}
+
+.notice-screen {
+  background-color: #050715;
+  padding-top: 14px;
+}
+
+.danger-title {
+  margin-top: 10px;
+  color: #dd5146;
+  font-size: 22px;
+}
+
+.notice-icon {
+  margin-top: 12px;
+  margin-bottom: 12px;
+  color: #dd5146;
+  font-size: 64px;
+}
+
+.warn {
+  width: 174px;
+  height: 34px;
+  margin-top: 7px;
+  border-left-width: 5px;
+  border-left-color: #dd5146;
+  border-radius: 6px;
+  background-color: #2b0e0e;
+  color: #ffffff;
+  font-size: 16px;
+  text-align: center;
+}
+
+.sincere {
+  margin-top: 15px;
+  margin-bottom: 9px;
+  color: #d8b75e;
+  font-size: 23px;
+}
+
+.danger-btn {
+  color: #ffffff;
+  background-color: #dd5146;
+}
+
+.notice-btn {
+  width: 150px;
+  height: 48px;
+  border-radius: 24px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background-color: #1496ff;
+}
+
+.notice-btn-line {
+  width: 140px;
+  height: 20px;
+  color: #ffffff;
+  font-size: 15px;
+  line-height: 20px;
+  text-align: center;
+}
+
+.notice-btn-line-second {
+  margin-top: 1px;
+}
+
+.draw-screen {
+  padding-left: 10px;
+  padding-right: 10px;
+  padding-top: 16px;
+  padding-bottom: 6px;
+  background-color: #000000;
+}
+
+.draw-nav {
+  width: 180px;
+  height: 34px;
+  flex-direction: row;
+  align-items: center;
+}
+
+.draw-back {
+  width: 28px;
+  color: #c7c7cf;
+  font-size: 34px;
+  line-height: 34px;
+  text-align: left;
+}
+
+.draw-title {
+  width: 124px;
+  color: #d8b75e;
+  font-size: 24px;
+  line-height: 30px;
+  text-align: center;
+}
+
+.draw-spacer {
+  width: 28px;
+}
+
+.draw-rule {
+  width: 180px;
+  height: 1px;
+  margin-top: 2px;
+  margin-bottom: 12px;
+  background-color: #333642;
+}
+
+.draw-main {
+  width: 190px;
+  color: #ffffff;
+  font-size: 24px;
+  line-height: 30px;
+  text-align: center;
+}
+
+.draw-sub {
+  width: 190px;
+  margin-top: 2px;
+  color: #9e9eaa;
+  font-size: 20px;
+  line-height: 25px;
+  text-align: center;
+}
+
+.draw-tube-image {
+  width: 126px;
+  height: 211px;
+  margin-top: 0px;
+  margin-bottom: -10px;
+}
+
+.draw-sensing-row {
+  width: 160px;
+  height: 38px;
+  margin-top: 0px;
+  margin-bottom: -6px;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+}
+
+.draw-wave {
+  width: 27px;
+  height: 34px;
+  margin-right: 6px;
+}
+
+.draw-sensing-text {
+  color: #9f6dff;
+  font-size: 18px;
+}
+
+.draw-button-image {
+  width: 116px;
+  height: 132px;
+  margin-top: -4px;
+}
+
+.nav {
+  width: 100%;
+  height: 42px;
+  flex-direction: row;
+  align-items: center;
+}
+
+.back {
+  width: 34px;
+  color: #d8b75e;
+  font-size: 32px;
+}
+
+.nav-title {
+  flex: 1;
+  color: #d8b75e;
+  font-size: 22px;
+  text-align: center;
+}
+
+.tube {
+  width: 104px;
+  height: 148px;
+  margin-top: 28px;
+  margin-bottom: 18px;
+  border-width: 4px;
+  border-color: #d8b75e;
+  border-radius: 10px;
+  align-items: center;
+  justify-content: center;
+  background-color: #11183b;
+}
+
+.tube-text {
+  color: #d8b75e;
+  font-size: 44px;
+}
+
+.draw-btn {
+  width: 92px;
+  height: 92px;
+  margin-top: 16px;
+  border-radius: 46px;
+  border-width: 7px;
+  border-color: #efd477;
+  background-color: #1a1400;
+  color: #d8b75e;
+  font-size: 38px;
+}
+
+.large {
+  width: 184px;
+  height: 184px;
+  border-radius: 92px;
+}
+
+.sensing-screen {
+  padding-left: 8px;
+  padding-right: 8px;
+  padding-top: 18px;
+  padding-bottom: 14px;
+  background-color: #000000;
+}
+
+.sensing-top {
+  width: 190px;
+  height: 30px;
+  margin-top: 0px;
+  margin-bottom: 6px;
+  color: #9b78d8;
+  font-size: 22px;
+  line-height: 30px;
+  text-align: center;
+}
+
+.sensing-oracle {
+  width: 168px;
+  height: 203px;
+  margin-top: 0px;
+  margin-bottom: 8px;
+}
+
+.sensing-gold {
+  width: 190px;
+  color: #d8b75e;
+  font-size: 20px;
+  line-height: 25px;
+  text-align: center;
+}
+
+.sense-title {
+  width: 190px;
+  margin-top: 2px;
+  color: #ffffff;
+  font-size: 30px;
+  line-height: 36px;
+  font-weight: bold;
+  text-align: center;
+}
+
+.sensing-wait {
+  width: 190px;
+  margin-top: 3px;
+  color: #878895;
+  font-size: 19px;
+  line-height: 24px;
+  text-align: center;
+}
+
+.sensing-progress {
+  width: 150px;
+  height: 21px;
+  margin-top: 12px;
+  margin-bottom: 7px;
+}
+
+.sensing-footer {
+  width: 190px;
+  color: #878895;
+  font-size: 16px;
+  line-height: 22px;
+  text-align: center;
+}
+
+.progress {
+  width: 160px;
+  height: 6px;
+  margin-top: 24px;
+  border-radius: 3px;
+  background-color: #30354b;
+}
+
+.progress-fill {
+  width: 110px;
+  height: 6px;
+  border-radius: 3px;
+  background-color: #d8b75e;
+}
+
+.result-screen {
+  padding-left: 8px;
+  padding-right: 8px;
+  padding-top: 26px;
+  padding-bottom: 12px;
+  background-color: #000000;
+}
+
+.result-light {
+  width: 72px;
+  height: 62px;
+  margin-top: -18px;
+  margin-bottom: -16px;
+  opacity: 0.55;
+}
+
+.result-heading {
+  width: 176px;
+  height: 34px;
+  margin-top: 0px;
+  margin-bottom: 30px;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+}
+
+.result-heading-line {
+  width: 42px;
+  height: 2px;
+  background-color: #d8b75e;
+}
+
+.result-heading-text {
+  width: 90px;
+  color: #d8b75e;
+  font-size: 22px;
+  line-height: 30px;
+  text-align: center;
+}
+
+.result-card {
+  width: 196px;
+  height: 204px;
+  align-items: center;
+  justify-content: center;
+}
+
+.result-frame {
+  position: absolute;
+  width: 196px;
+  height: 204px;
+}
+
+.result-content {
+  width: 150px;
+  height: 136px;
+  background-color: #000000;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.result-prefix {
+  width: 150px;
+  height: 24px;
+  margin-top: 0px;
+  color: #f2ead8;
+  font-size: 20px;
+  line-height: 24px;
+  text-align: center;
+}
+
+.result-number {
+  width: 180px;
+  height: 52px;
+  margin-top: 1px;
+  color: #d8b75e;
+  font-size: 40px;
+  line-height: 52px;
+  text-align: center;
+}
+
+.result-suffix {
+  width: 150px;
+  height: 24px;
+  margin-top: 1px;
+  color: #f2ead8;
+  font-size: 20px;
+  line-height: 24px;
+  text-align: center;
+}
+
+.result-title-rule {
+  width: 52px;
+  height: 2px;
+  margin-top: 2px;
+  margin-bottom: 5px;
+  background-color: #d8b75e;
+}
+
+.result-story {
+  width: 174px;
+  height: 24px;
+  color: #f2ead8;
+  font-size: 15px;
+  line-height: 20px;
+  text-align: center;
+}
+
+.result-hint {
+  width: 190px;
+  margin-top: 46px;
+  color: #e6dfd5;
+  font-size: 19px;
+  line-height: 25px;
+  text-align: center;
+}
+
+.result-arrows {
+  width: 50px;
+  height: 43px;
+  margin-top: 8px;
+  margin-bottom: 18px;
+}
+
+.result-bottom-rule {
+  width: 176px;
+  height: 1px;
+  margin-bottom: 14px;
+  background-color: #403b2e;
+}
+
+.result-button {
+  width: 176px;
+  height: 43px;
+}
+
+.sign-card {
+  width: 172px;
+  height: 172px;
+  margin-top: 28px;
+  margin-bottom: 16px;
+  border-width: 3px;
+  border-color: #d8b75e;
+  border-radius: 86px;
+  align-items: center;
+  justify-content: center;
+  background-color: #11183b;
+}
+
+.sign-title {
+  color: #d8b75e;
+  font-size: 32px;
+  font-weight: bold;
+}
+
+.small {
+  width: 84px;
+  margin-top: 8px;
+  margin-bottom: 8px;
+}
+
+.story {
+  width: 132px;
+  color: #ffffff;
+  font-size: 16px;
+  text-align: center;
+}
+
+.grade {
+  position: absolute;
+  right: 6px;
+  top: 42px;
+  width: 34px;
+  height: 34px;
+  border-radius: 17px;
+  background-color: #d8b75e;
+  color: #1a1400;
+  font-size: 20px;
+  text-align: center;
+}
+
+/* First screen rebuild from the supplied design. */
+.screen {
+  background-color: #000000;
+}
+
+.dots {
+  margin-top: 6px;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  margin-left: 7px;
+  margin-right: 7px;
+  border-radius: 4px;
+  background-color: #262934;
+}
+
+.active {
+  background-color: #d9b451;
+}
+
+.top-rule {
+  width: 164px;
+  margin-top: 7px;
+  margin-bottom: 13px;
+  background-color: #272b39;
+}
+
+.eyebrow {
+  color: #90919f;
+  font-size: 15px;
+  text-align: center;
+}
+
+.step-title {
+  margin-top: 6px;
+  color: #d8b75e;
+  font-size: 32px;
+  font-weight: normal;
+  text-align: center;
+}
+
+.action-title {
+  margin-top: 1px;
+  color: #f6f0e8;
+  font-size: 27px;
+  font-weight: normal;
+  text-align: center;
+}
+
+.gold-rule {
+  width: 58px;
+  height: 2px;
+  margin-top: 7px;
+  margin-bottom: 10px;
+  border-radius: 1px;
+}
+
+.cleanse-art {
+  width: 106px;
+  height: 158px;
+  margin-top: 0px;
+  margin-bottom: 14px;
+}
+
+.copy-main {
+  width: 174px;
+  color: #f8f3ec;
+  font-size: 19px;
+  line-height: 25px;
+  text-align: center;
+}
+
+.second {
+  margin-top: 5px;
+}
+
+.copy-muted {
+  width: 174px;
+  margin-top: 5px;
+  color: #8a8b99;
+  font-size: 17px;
+  line-height: 22px;
+}
+
+.bottom-rule {
+  width: 180px;
+  margin-top: 7px;
+  margin-bottom: 4px;
+  background-color: #222636;
+}
+
+.primary-btn {
+  width: 148px;
+  height: 32px;
+  border-radius: 16px;
+  background-color: #d8b75e;
+  align-items: center;
+  justify-content: center;
+}
+
+.primary-btn-text {
+  width: 148px;
+  height: 32px;
+  color: #1d1500;
+  font-size: 16px;
+  line-height: 32px;
+  font-weight: normal;
+  text-align: center;
+}
+
+/* Second screen: pure black background, shared header rhythm, coded countdown ring. */
+.calm-screen {
+  background-color: #000000;
+  padding-top: 14px;
+  padding-bottom: 12px;
+}
+
+.calm-gold-rule {
+  margin-bottom: 8px;
+}
+
+.calm-ring {
+  width: 138px;
+  height: 138px;
+  margin-top: 0px;
+  margin-bottom: 8px;
+  border-width: 0px;
+  border-radius: 69px;
+  background-color: #060817;
+  align-items: center;
+  justify-content: center;
+}
+
+.ring-muted {
+  position: absolute;
+  width: 136px;
+  height: 136px;
+  border-radius: 68px;
+  border-width: 7px;
+  border-color: #343846;
+}
+
+.ring-glow {
+  position: absolute;
+  width: 136px;
+  height: 136px;
+  border-radius: 68px;
+  border-width: 3px;
+  border-color: rgba(216, 183, 94, 0.35);
+}
+
+.pray-image {
+  width: 50px;
+  height: 66px;
+  margin-top: 13px;
+}
+
+.count-num {
+  margin-top: 3px;
+  color: #d8b75e;
+  font-size: 34px;
+  text-align: center;
+}
+
+.calm-copy-main {
+  margin-top: 2px;
+  color: #9b9ca8;
+  font-size: 17px;
+}
+
+.chant-box {
+  width: 168px;
+  height: 88px;
+  margin-top: 7px;
+  border-width: 2px;
+  border-style: dashed;
+  border-color: #d8b75e;
+  border-radius: 8px;
+  align-items: center;
+  justify-content: center;
+}
+
+.chant-hint {
+  color: #8f909d;
+  font-size: 14px;
+  line-height: 18px;
+  text-align: center;
+}
+
+.chant-lines {
+  width: 150px;
+  height: 48px;
+  margin-top: 3px;
+  flex-direction: column;
+  align-items: center;
+}
+
+.chant-main {
+  width: 150px;
+  height: 22px;
+  margin-top: 0px;
+  color: #d8b75e;
+  font-size: 18px;
+  line-height: 22px;
+  text-align: center;
+}
+
+.chant-main-second {
+  margin-top: 3px;
+}
+
+.calm-footer {
+  margin-top: 5px;
+  font-size: 14px;
+}
+
+</style>

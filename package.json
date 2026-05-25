@@ -1,0 +1,34 @@
+{
+  "name": "BAZI",
+  "version": "1.0.0",
+  "description": "",
+  "engines": {
+    "node": ">=8.10"
+  },
+  "scripts": {
+    "start": "node scripts/start-vela.js",
+    "build": "aiot build",
+    "release": "aiot release",
+    "lint": "eslint --fix src/common/*.js scripts/*.js"
+  },
+  "lint-staged": {
+    "*.js": [
+      "prettier --write",
+      "eslint --fix",
+      "git add"
+    ],
+    "*.ux": [
+      "prettier --write",
+      "git add"
+    ],
+    "*.{less,css}": [
+      "prettier --write",
+      "stylelint --fix --custom-syntax postcss-less",
+      "git add"
+    ]
+  },
+  "devDependencies": {
+    "@aiot-toolkit/jsc": "^1.0.3",
+    "aiot-toolkit": "^2.0.5"
+  }
+}
