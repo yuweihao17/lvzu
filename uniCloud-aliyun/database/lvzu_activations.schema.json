@@ -1,0 +1,33 @@
+{
+  "bsonType": "object",
+  "required": ["device_code", "activation_code"],
+  "permission": {
+    "read": false,
+    "create": false,
+    "update": false,
+    "delete": false
+  },
+  "properties": {
+    "_id": {
+      "description": "ID"
+    },
+    "card_code": {
+      "bsonType": "string"
+    },
+    "source_type": {
+      "bsonType": "string"
+    },
+    "source_id": {
+      "bsonType": "string"
+    },
+    "device_code": {
+      "bsonType": "string"
+    },
+    "activation_code": {
+      "bsonType": "string"
+    },
+    "created_at": {
+      "bsonType": "long"
+    }
+  }
+}

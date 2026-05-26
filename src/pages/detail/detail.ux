@@ -1,17 +1,13 @@
 <template>
-  <div class="detail-page">
+  <div class="detail-page" onswipe="handleDetailSwipe">
     <div class="full-meaning-page" if="{{viewMode === 'fullMeaning'}}">
-      <div class="full-topbar">
-        <text class="full-back" onclick="closeFullMeaning">←</text>
-        <text class="full-title">{{fullTitle}}</text>
-        <text class="full-spacer"></text>
-      </div>
+      <text class="full-title">{{fullTitle}}</text>
       <text class="full-sign-title">{{sign.title}}</text>
       <text class="full-story">{{sign.story}}</text>
       <div class="full-rule"></div>
       <scroll class="full-scroll" scroll-y="true" bounces="true">
         <div class="full-scroll-inner">
-          <text class="full-body">{{fullText}}</text>
+          <text class="full-line" for="{{line in fullLines}}">{{line}}</text>
         </div>
       </scroll>
     </div>
@@ -40,7 +36,6 @@
       <div class="poem-card">
         <text class="small-muted">签  文</text>
         <text class="poem-line" for="{{line in oracleLines}}">{{line}}</text>
-        <text class="touch-tip">点击逐句查看注解</text>
       </div>
       <div class="summary-card">
         <div class="section-head">
@@ -88,13 +83,13 @@ import router from "@system.router"
 import storage from "@system.storage"
 import vibrator from "@system.vibrator"
 import app from "@system.app"
-import { signs } from "../../common/signs.js"
+import { signPayloads } from "../../common/signPayloads.js"
 
 export default {
   private: {
     viewMode: "detail",
     tab: "explain",
-    sign: signs[98],
+    sign: {},
     oracleLines: [],
     poemSayLines: [],
     categories: [],
@@ -102,11 +97,21 @@ export default {
     shortExplain: "",
     fullTitle: "全部释义",
     fullText: "",
+    fullLines: [],
     finalWord: "求得此签，诸事循序渐进"
   },
 
   onInit() {
     this.loadSign()
+  },
+
+  onDestroy() {
+    this.sign = {}
+    this.oracleLines = []
+    this.poemSayLines = []
+    this.categories = []
+    this.fullLines = []
+    this.fullText = ""
   },
 
   doVibrate() {
@@ -123,12 +128,30 @@ export default {
       default: "99",
       success: data => {
         const id = parseInt(data, 10) || 99
-        this.setSign(signs[id - 1] || signs[98])
+        this.setSign(this.getSignById(id))
       },
       fail: () => {
-        this.setSign(signs[98])
+        this.setSign(this.getSignById(99))
       }
     })
+  },
+
+  getSignById(id) {
+    const payload = signPayloads[id - 1] || signPayloads[98] || "{}"
+    try {
+      return JSON.parse(payload)
+    } catch (e) {
+      return {
+        id: 99,
+        title: "第九十九签",
+        story: "古人邓艾钟会入川",
+        oracle: "",
+        explain: "",
+        poem: [],
+        poemExplain: "",
+        categories: []
+      }
+    }
   },
 
   setSign(sign) {
@@ -140,12 +163,36 @@ export default {
     this.shortExplain = this.clip(sign.explain || "", 58)
     this.fullTitle = "全部释义"
     this.fullText = ""
+    this.fullLines = []
     this.viewMode = "detail"
     this.finalWord = this.buildFinalWord(sign)
   },
 
   splitText(text, max) {
     return (text || "").split(/[，；。;]/).map(item => item.trim()).filter(Boolean).slice(0, max)
+  },
+
+  formatFullText(text) {
+    const source = String(text || "").replace(/\s+/g, "")
+    const punctuation = "，。；？！、："
+    const lines = []
+    let line = ""
+    for (let i = 0; i < source.length; i++) {
+      const char = source.charAt(i)
+      line += char
+      const next = source.charAt(i + 1)
+      if (line.length >= 8 && punctuation.indexOf(next) < 0) {
+        lines.push(line)
+        line = ""
+      }
+    }
+    if (line) lines.push(line)
+    return lines.join("\n")
+  },
+
+  formatFullLines(text) {
+    const formatted = this.formatFullText(text)
+    return formatted.split("\n").filter(Boolean)
   },
 
   buildMeaningRow(item) {
@@ -185,14 +232,16 @@ export default {
   showFullExplain() {
     this.doVibrate()
     this.fullTitle = "全部解签"
-    this.fullText = this.sign.explain || ""
+    this.fullText = this.formatFullText(this.sign.explain || "")
+    this.fullLines = this.formatFullLines(this.sign.explain || "")
     this.viewMode = "fullMeaning"
   },
 
   showFullPoemExplain() {
     this.doVibrate()
     this.fullTitle = "全部解诗"
-    this.fullText = this.sign.poemExplain || ""
+    this.fullText = this.formatFullText(this.sign.poemExplain || "")
+    this.fullLines = this.formatFullLines(this.sign.poemExplain || "")
     this.viewMode = "fullMeaning"
   },
 
@@ -207,6 +256,26 @@ export default {
   },
 
   goBack() {
+    this.doVibrate()
+    if (this.viewMode === "fullMeaning") {
+      this.viewMode = "detail"
+      return
+    }
+    router.back()
+  },
+
+  getSwipeDirection(event) {
+    return event && (event.direction || event.detail && event.detail.direction) || ""
+  },
+
+  handleDetailSwipe(event) {
+    const direction = this.getSwipeDirection(event)
+    if (this.viewMode === "fullMeaning" && direction === "right") {
+      this.doVibrate()
+      this.viewMode = "detail"
+      return
+    }
+    if (direction !== "left") return
     this.doVibrate()
     if (this.viewMode === "fullMeaning") {
       this.viewMode = "detail"
@@ -234,44 +303,26 @@ export default {
 .full-meaning-page {
   width: 100%;
   height: 100%;
-  padding-left: 14px;
-  padding-right: 14px;
-  padding-top: 34px;
-  padding-bottom: 12px;
+  padding-left: 8px;
+  padding-right: 8px;
+  padding-top: 26px;
+  padding-bottom: 8px;
   flex-direction: column;
   align-items: center;
   background-color: #000000;
 }
 
-.full-topbar {
-  width: 100%;
-  height: 40px;
-  flex-direction: row;
-  align-items: center;
-}
-
-.full-back {
-  width: 38px;
-  color: #a7a7af;
-  font-size: 24px;
-  line-height: 40px;
-  text-align: left;
-}
-
 .full-title {
-  flex: 1;
+  width: 150px;
   color: #d7b760;
-  font-size: 23px;
+  font-size: 22px;
+  line-height: 34px;
   text-align: center;
-}
-
-.full-spacer {
-  width: 34px;
 }
 
 .full-sign-title {
   width: 184px;
-  margin-top: 10px;
+  margin-top: 4px;
   color: #d7b760;
   font-size: 21px;
   line-height: 28px;
@@ -280,39 +331,43 @@ export default {
 
 .full-story {
   width: 184px;
-  margin-top: 7px;
-  color: #8f909a;
-  font-size: 16px;
-  line-height: 22px;
+  margin-top: 5px;
+  color: #b6b7c2;
+  font-size: 17px;
+  line-height: 23px;
   text-align: center;
+  font-weight: bold;
 }
 
 .full-rule {
   width: 150px;
   height: 1px;
-  margin-top: 12px;
-  margin-bottom: 10px;
+  margin-top: 8px;
+  margin-bottom: 6px;
   background-color: #40351d;
 }
 
 .full-scroll {
-  width: 184px;
-  height: 300px;
+  width: 176px;
+  height: 344px;
 }
 
 .full-scroll-inner {
-  width: 184px;
-  height: 760px;
+  width: 176px;
+  height: 1280px;
   flex-direction: column;
-  padding-bottom: 80px;
+  align-items: center;
+  padding-top: 0px;
+  padding-bottom: 90px;
 }
 
-.full-body {
-  width: 184px;
-  height: 680px;
+.full-line {
+  width: 168px;
+  height: 30px;
   color: #d4d1cf;
-  font-size: 17px;
-  line-height: 25px;
+  font-size: 20px;
+  line-height: 30px;
+  text-align: left;
 }
 
 .paper-bg {
@@ -394,10 +449,11 @@ export default {
 
 .story-title {
   width: 184px;
-  color: #aaaab4;
-  font-size: 15px;
-  line-height: 20px;
+  color: #c1c2cc;
+  font-size: 16px;
+  line-height: 21px;
   text-align: center;
+  font-weight: bold;
 }
 
 .ornament {
@@ -450,13 +506,6 @@ export default {
   line-height: 26px;
   text-align: center;
   font-weight: normal;
-}
-
-.touch-tip {
-  margin-top: 5px;
-  color: #8e8f9a;
-  font-size: 12px;
-  text-align: center;
 }
 
 .summary-card {
@@ -721,7 +770,6 @@ export default {
 }
 
 .outline-btn {
-  align-self: center;
   color: #d7b760;
   background-color: rgba(0, 0, 0, 0);
   border-width: 2px;

@@ -1,10 +1,67 @@
 <script>
+import brightness from "@system.brightness"
+
 export default {
+  private: {
+    brightnessDelayTimer: null,
+    brightnessTimer: null
+  },
+
   onCreate() {
     console.log("app created")
+    this.scheduleBrightScreen()
+  },
+  onShow() {
+    this.scheduleBrightScreen()
+  },
+  onHide() {
+    this.disableBrightScreen()
   },
   onDestroy() {
     console.log("app destroyed")
+    this.disableBrightScreen()
+  },
+
+  scheduleBrightScreen() {
+    if (this.brightnessDelayTimer) clearTimeout(this.brightnessDelayTimer)
+    this.brightnessDelayTimer = setTimeout(() => {
+      this.brightnessDelayTimer = null
+      this.enableBrightScreen()
+    }, 800)
+  },
+
+  enableBrightScreen() {
+    if (this.brightnessTimer) return
+    this.applyBrightScreen()
+    if (this.brightnessTimer) clearInterval(this.brightnessTimer)
+    this.brightnessTimer = setInterval(() => {
+      this.applyBrightScreen()
+    }, 25000)
+  },
+
+  applyBrightScreen() {
+    try {
+      brightness.setValue({ value: 255 })
+      brightness.setKeepScreenOn({ keepScreenOn: true })
+    } catch (e) {
+      console.log("set brightness failed")
+    }
+  },
+
+  disableBrightScreen() {
+    if (this.brightnessDelayTimer) {
+      clearTimeout(this.brightnessDelayTimer)
+      this.brightnessDelayTimer = null
+    }
+    if (this.brightnessTimer) {
+      clearInterval(this.brightnessTimer)
+      this.brightnessTimer = null
+    }
+    try {
+      brightness.setKeepScreenOn({ keepScreenOn: false })
+    } catch (e) {
+      console.log("restore brightness failed")
+    }
   }
 }
 </script>

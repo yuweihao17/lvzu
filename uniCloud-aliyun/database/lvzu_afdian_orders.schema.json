@@ -1,0 +1,56 @@
+{
+  "bsonType": "object",
+  "required": ["order_no"],
+  "permission": {
+    "read": false,
+    "create": false,
+    "update": false,
+    "delete": false
+  },
+  "properties": {
+    "_id": {
+      "description": "ID"
+    },
+    "order_no": {
+      "bsonType": "string",
+      "description": "爱发电订单号"
+    },
+    "card_code": {
+      "bsonType": "string",
+      "description": "默认使用订单号作为卡密，也可接收 webhook 中的 card_code"
+    },
+    "user_id": {
+      "bsonType": "string"
+    },
+    "plan_id": {
+      "bsonType": "string"
+    },
+    "product_type": {
+      "bsonType": "string"
+    },
+    "total_amount": {
+      "bsonType": "string"
+    },
+    "status": {
+      "bsonType": "string"
+    },
+    "bound_device_code": {
+      "bsonType": "string"
+    },
+    "activation_code": {
+      "bsonType": "string"
+    },
+    "raw": {
+      "bsonType": "object"
+    },
+    "created_at": {
+      "bsonType": "long"
+    },
+    "updated_at": {
+      "bsonType": "long"
+    },
+    "activated_at": {
+      "bsonType": "long"
+    }
+  }
+}

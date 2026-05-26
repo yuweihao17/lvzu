@@ -20,6 +20,18 @@
     },
     {
       "name": "system.app"
+    },
+    {
+      "name": "system.device"
+    },
+    {
+      "name": "system.brightness"
+    }
+  ],
+  "permissions": [
+    {
+      "origin": "*",
+      "name": "hapjs.permission.DEVICE_INFO"
     }
   ],
   "config": {

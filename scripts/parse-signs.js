@@ -63,4 +63,17 @@ const signs = headings.map((heading, index) => {
 
 fs.mkdirSync("src/common", { recursive: true })
 fs.writeFileSync("src/common/signs.js", "export const signs = " + JSON.stringify(signs, null, 2) + "\n", "utf8")
+
+const signSummaries = signs.map(sign => ({
+  id: sign.id,
+  story: sign.story
+}))
+
+fs.writeFileSync(
+  "src/common/signSummaries.js",
+  "export const signSummaries = " + JSON.stringify(signSummaries, null, 2) + "\n",
+  "utf8"
+)
+
 console.log("wrote signs:", signs.length)
+console.log("wrote sign summaries:", signSummaries.length)

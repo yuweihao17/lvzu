@@ -1,6 +1,6 @@
 <template>
   <div class="page">
-    <div class="screen" if="{{step === 'cleanse'}}">
+    <div class="screen" if="{{step === 'cleanse'}}" onswipe="handlePageSwipe">
       <div class="dots">
         <div class="dot active"></div>
         <div class="dot"></div>
@@ -22,7 +22,7 @@
       </div>
     </div>
 
-    <div class="screen calm-screen" if="{{step === 'calm'}}">
+    <div class="screen calm-screen" if="{{step === 'calm'}}" onswipe="handlePageSwipe">
       <div class="dots"><div class="dot active"></div><div class="dot active"></div><div class="dot"></div><div class="dot"></div></div>
       <div class="top-rule"></div>
       <text class="eyebrow">仪式准备</text>
@@ -46,7 +46,7 @@
       <text class="copy copy-muted calm-footer">默念完成后自动继续</text>
     </div>
 
-    <div class="screen statement-screen" if="{{step === 'statement'}}">
+    <div class="screen statement-screen" if="{{step === 'statement'}}" onswipe="handlePageSwipe">
       <div class="dots"><div class="dot active"></div><div class="dot active"></div><div class="dot active"></div><div class="dot"></div></div>
       <div class="top-rule"></div>
       <text class="eyebrow">仪式准备</text>
@@ -63,7 +63,7 @@
       </div>
     </div>
 
-    <div class="screen notice-screen" if="{{step === 'notice'}}">
+    <div class="screen notice-screen" if="{{step === 'notice'}}" onswipe="handlePageSwipe">
       <div class="dots"><div class="dot active"></div><div class="dot active"></div><div class="dot active"></div><div class="dot active"></div></div>
       <div class="top-rule"></div>
       <text class="danger-title">求签须知</text>
@@ -78,7 +78,7 @@
       </div>
     </div>
 
-    <div class="screen draw-screen" if="{{step === 'draw'}}">
+    <div class="screen draw-screen" if="{{step === 'draw'}}" onswipe="handlePageSwipe">
       <div class="draw-nav">
         <text class="draw-back" onclick="backPrepare">‹</text>
         <text class="draw-title">吕祖灵签</text>
@@ -95,7 +95,7 @@
       <image class="draw-button-image" src="/common/draw-button-aura.png" onclick="startDraw"></image>
     </div>
 
-    <div class="screen sensing-screen" if="{{step === 'sensing'}}">
+    <div class="screen sensing-screen" if="{{step === 'sensing'}}" onswipe="handlePageSwipe">
       <text class="sensing-top">‹ 感应中... ›</text>
       <image class="sensing-oracle" src="/common/sensing-oracle.png"></image>
       <text class="sensing-gold">天地人三才感应</text>
@@ -126,15 +126,52 @@
       <div class="result-bottom-rule"></div>
       <image class="result-button" src="/common/result-swipe.png" onclick="openDetail"></image>
     </div>
+
+    <div class="screen activate-screen" if="{{step === 'activate'}}">
+      <text class="activate-title">未激活</text>
+      <text class="activate-sub">扫码购买或输入试用码</text>
+      <text class="activate-trial">试用码 367017 免费试用 5 分钟</text>
+      <div class="activate-code-box" onclick="showDeviceCode">
+        <text class="activate-device">{{deviceCode}}</text>
+      </div>
+      <text class="activate-label">设备码</text>
+      <qrcode class="activate-qr" value="{{activationQrValue}}"></qrcode>
+      <text class="activate-help">输入激活码 / 试用码</text>
+      <text class="activate-input">{{activationCodeText}}</text>
+      <div class="activate-keypad">
+        <input class="key" type="button" value="1" onclick="press1" />
+        <input class="key" type="button" value="2" onclick="press2" />
+        <input class="key" type="button" value="3" onclick="press3" />
+        <input class="key" type="button" value="4" onclick="press4" />
+        <input class="key" type="button" value="5" onclick="press5" />
+        <input class="key" type="button" value="6" onclick="press6" />
+        <input class="key" type="button" value="7" onclick="press7" />
+        <input class="key" type="button" value="8" onclick="press8" />
+        <input class="key" type="button" value="9" onclick="press9" />
+        <input class="key key-alt" type="button" value="返" onclick="backDraw" />
+        <input class="key" type="button" value="0" onclick="press0" />
+        <input class="key key-alt" type="button" value="删" onclick="deleteKey" />
+      </div>
+      <input class="activate-submit" type="button" value="验证激活" onclick="submitActivation" />
+      <text class="activate-message">{{activationMessage}}</text>
+    </div>
   </div>
 </template>
 <script>
 import router from "@system.router"
 import storage from "@system.storage"
 import vibrator from "@system.vibrator"
-import { signs } from "../../common/signs.js"
+import device from "@system.device"
+import { signSummaries } from "../../common/signSummaries.js"
+import { getActivationQrValue, makeActivationCode, makeDeviceCode, normalizeCode } from "../../common/activation.js"
 
 const DRAW_KEY = "lvzu_today_draw"
+const ACTIVATED_KEY = "lvzu_activated"
+const DEVICE_CODE_KEY = "lvzu_device_code"
+const TRIAL_END_KEY = "lvzu_trial_end"
+const TRIAL_USED_KEY = "lvzu_trial_used"
+const TRIAL_CODE = "367017"
+const TRIAL_DURATION = 5 * 60 * 1000
 const CN_DIGITS = ["零", "一", "二", "三", "四", "五", "六", "七", "八", "九"]
 
 function todayKey() {
@@ -157,11 +194,23 @@ export default {
     step: "cleanse",
     prepareIndex: 0,
     calmCountdown: 6,
-    selectedSign: signs[98],
-    selectedSignNumber: toChineseNumber(signs[98].id),
+    selectedSign: signSummaries[98],
+    selectedSignNumber: toChineseNumber(signSummaries[98].id),
     isDrawing: false,
+    isNavigatingDetail: false,
+    isActivated: false,
+    isTrialActive: false,
+    trialUsed: false,
+    trialEndAt: 0,
+    activationInput: "",
+    activationMessage: "",
+    activationCodeText: "--------",
+    deviceCode: "00000000",
+    activationQrValue: "",
     calmTimer: null,
     senseTimer: null,
+    sensingVibrateTimer: null,
+    deviceQueryTimer: null,
     sensingDots: ".",
     sensingDotsTimer: null
   },
@@ -169,6 +218,8 @@ export default {
   onInit() {
     this.step = "cleanse"
     this.prepareIndex = 0
+    this.loadActivation()
+    this.loadDeviceCode()
   },
 
   onDestroy() {
@@ -192,7 +243,7 @@ export default {
         try {
           const record = JSON.parse(data)
           if (record.date === todayKey() && record.signId) {
-            this.selectedSign = signs[record.signId - 1] || signs[0]
+            this.selectedSign = signSummaries[record.signId - 1] || signSummaries[0]
             this.selectedSignNumber = toChineseNumber(this.selectedSign.id)
             this.step = "result"
           }
@@ -200,6 +251,87 @@ export default {
           console.log("invalid draw cache")
         }
       }
+    })
+  },
+
+  loadActivation() {
+    storage.get({
+      key: ACTIVATED_KEY,
+      default: "",
+      success: data => {
+        this.isActivated = data === "1"
+      }
+    })
+    storage.get({
+      key: TRIAL_END_KEY,
+      default: "",
+      success: data => {
+        const endAt = parseInt(data, 10) || 0
+        this.trialEndAt = endAt
+        this.isTrialActive = endAt > Date.now()
+      }
+    })
+    storage.get({
+      key: TRIAL_USED_KEY,
+      default: "",
+      success: data => {
+        this.trialUsed = data === "1"
+      }
+    })
+  },
+
+  hasAccess() {
+    if (this.isActivated) return true
+    if (this.trialEndAt > Date.now()) {
+      this.isTrialActive = true
+      return true
+    }
+    this.isTrialActive = false
+    return false
+  },
+
+  loadDeviceCode() {
+    const fallback = makeDeviceCode(Date.now() + "-" + Math.random())
+    this.setDeviceCode(fallback)
+    storage.get({
+      key: DEVICE_CODE_KEY,
+      default: "",
+      success: data => {
+        if (data) this.setDeviceCode(data)
+      }
+    })
+    if (this.deviceQueryTimer) clearTimeout(this.deviceQueryTimer)
+    this.deviceQueryTimer = setTimeout(() => {
+      this.deviceQueryTimer = null
+      this.queryDeviceCode(fallback)
+    }, 500)
+  },
+
+  queryDeviceCode(fallback) {
+    try {
+      device.getDeviceId({
+        success: data => {
+          const raw = data && (data.deviceId || data.device_id || data.id)
+          this.setDeviceCode(makeDeviceCode(raw || fallback))
+        },
+        fail: () => {
+          this.saveFallbackDeviceCode()
+        }
+      })
+    } catch (e) {
+      this.saveFallbackDeviceCode()
+    }
+  },
+
+  setDeviceCode(code) {
+    this.deviceCode = normalizeCode(code)
+    this.activationQrValue = getActivationQrValue(this.deviceCode)
+  },
+
+  saveFallbackDeviceCode() {
+    storage.set({
+      key: DEVICE_CODE_KEY,
+      value: this.deviceCode
     })
   },
 
@@ -226,9 +358,17 @@ export default {
       clearTimeout(this.senseTimer)
       this.senseTimer = null
     }
+    if (this.sensingVibrateTimer) {
+      clearInterval(this.sensingVibrateTimer)
+      this.sensingVibrateTimer = null
+    }
     if (this.sensingDotsTimer) {
       clearInterval(this.sensingDotsTimer)
       this.sensingDotsTimer = null
+    }
+    if (this.deviceQueryTimer) {
+      clearTimeout(this.deviceQueryTimer)
+      this.deviceQueryTimer = null
     }
   },
 
@@ -266,14 +406,41 @@ export default {
     this.prepareIndex = 2
   },
 
+  isExitSwipe(event) {
+    const direction = this.getSwipeDirection(event)
+    return direction === "right"
+  },
+
+  getSwipeDirection(event) {
+    const direction = event && (event.direction || event.detail && event.detail.direction || event.value || "")
+    return String(direction || "").toLowerCase()
+  },
+
+  exitApp() {
+    this.tap()
+    this.clearTimers()
+    router.back()
+  },
+
+  handlePageSwipe(event) {
+    if (this.isExitSwipe(event)) {
+      this.exitApp()
+    }
+  },
+
   startDraw() {
     if (this.isDrawing) return
     this.tap()
+    if (!this.hasAccess()) {
+      this.showActivation()
+      return
+    }
     this.isDrawing = true
     this.step = "sensing"
     this.startSensingDots()
-    const index = Math.floor(Math.random() * signs.length)
-    this.selectedSign = signs[index]
+    this.startSensingVibration()
+    const index = Math.floor(Math.random() * signSummaries.length)
+    this.selectedSign = signSummaries[index]
     this.selectedSignNumber = toChineseNumber(this.selectedSign.id)
     this.saveToday(this.selectedSign)
     this.senseTimer = setTimeout(() => {
@@ -281,11 +448,132 @@ export default {
       this.step = "result"
       this.isDrawing = false
       this.senseTimer = null
+      if (this.sensingVibrateTimer) {
+        clearInterval(this.sensingVibrateTimer)
+        this.sensingVibrateTimer = null
+      }
       if (this.sensingDotsTimer) {
         clearInterval(this.sensingDotsTimer)
         this.sensingDotsTimer = null
       }
-    }, 2800)
+    }, 5000)
+  },
+
+  showActivation() {
+    this.clearTimers()
+    this.activationInput = ""
+    this.activationCodeText = "--------"
+    this.activationMessage = this.trialEndAt > Date.now() ? "试用剩余 " + Math.ceil((this.trialEndAt - Date.now()) / 60000) + " 分钟" : "激活后只需验证一次"
+    this.step = "activate"
+  },
+
+  showDeviceCode() {
+    this.tap()
+    this.activationMessage = "设备码：" + this.deviceCode
+  },
+
+  appendActivationKey(key) {
+    this.tap()
+    if (!key || this.activationInput.length >= 8) return
+    this.activationInput = normalizeCode(this.activationInput + key)
+    this.activationCodeText = this.activationInput + "--------".slice(this.activationInput.length)
+    this.activationMessage = ""
+  },
+
+  press0() {
+    this.appendActivationKey("0")
+  },
+
+  press1() {
+    this.appendActivationKey("1")
+  },
+
+  press2() {
+    this.appendActivationKey("2")
+  },
+
+  press3() {
+    this.appendActivationKey("3")
+  },
+
+  press4() {
+    this.appendActivationKey("4")
+  },
+
+  press5() {
+    this.appendActivationKey("5")
+  },
+
+  press6() {
+    this.appendActivationKey("6")
+  },
+
+  press7() {
+    this.appendActivationKey("7")
+  },
+
+  press8() {
+    this.appendActivationKey("8")
+  },
+
+  press9() {
+    this.appendActivationKey("9")
+  },
+
+  deleteKey() {
+    this.tap()
+    this.activationInput = this.activationInput.slice(0, -1)
+    this.activationCodeText = this.activationInput + "--------".slice(this.activationInput.length)
+  },
+
+  backDraw() {
+    this.tap()
+    this.step = "draw"
+  },
+
+  submitActivation() {
+    this.tap()
+    const code = normalizeCode(this.activationInput)
+    if (code === TRIAL_CODE) {
+      if (this.trialUsed || this.trialEndAt > 0) {
+        this.activationMessage = "试用码已使用过"
+        return
+      }
+      const endAt = Date.now() + TRIAL_DURATION
+      this.trialEndAt = endAt
+      this.isTrialActive = true
+      this.trialUsed = true
+      storage.set({
+        key: TRIAL_END_KEY,
+        value: String(endAt),
+        success: () => {
+          storage.set({
+            key: TRIAL_USED_KEY,
+            value: "1"
+          })
+          this.activationMessage = "试用已开启 5 分钟"
+          this.step = "draw"
+        }
+      })
+      return
+    }
+    if (code.length !== 8) {
+      this.activationMessage = "请输入 8 位激活码"
+      return
+    }
+    if (code !== makeActivationCode(this.deviceCode)) {
+      this.activationMessage = "激活码错误"
+      return
+    }
+    this.isActivated = true
+    storage.set({
+      key: ACTIVATED_KEY,
+      value: "1",
+      success: () => {
+        this.activationMessage = "激活成功"
+        this.step = "draw"
+      }
+    })
   },
 
   startSensingDots() {
@@ -298,21 +586,46 @@ export default {
     }, 420)
   },
 
-  openDetail() {
+  startSensingVibration() {
+    if (this.sensingVibrateTimer) clearInterval(this.sensingVibrateTimer)
     this.tap()
+    this.sensingVibrateTimer = setInterval(() => {
+      this.tap()
+    }, 700)
+  },
+
+  openDetail() {
+    if (this.isNavigatingDetail) return
+    this.isNavigatingDetail = true
+    this.tap()
+    let navigated = false
+    const go = () => {
+      if (navigated) return
+      navigated = true
+      router.push({
+        uri: "/pages/detail"
+      })
+      setTimeout(() => {
+        this.isNavigatingDetail = false
+      }, 800)
+    }
     storage.set({
       key: "lvzu_current_sign",
       value: String(this.selectedSign.id),
-      complete: () => {
-        router.push({
-          uri: "/pages/detail"
-        })
-      }
+      success: go,
+      fail: go
     })
+    setTimeout(go, 180)
   },
 
-  handleResultSwipe() {
-    this.openDetail()
+  handleResultSwipe(event) {
+    if (this.isExitSwipe(event)) {
+      this.exitApp()
+      return
+    }
+    if (this.getSwipeDirection(event) === "up") {
+      this.openDetail()
+    }
   }
 }
 </script>
@@ -1195,6 +1508,152 @@ export default {
 .calm-footer {
   margin-top: 5px;
   font-size: 14px;
+}
+
+.activate-screen {
+  padding-left: 10px;
+  padding-right: 10px;
+  padding-top: 34px;
+  padding-bottom: 6px;
+  background-color: #000000;
+}
+
+.activate-title {
+  width: 190px;
+  color: #ffffff;
+  font-size: 28px;
+  line-height: 34px;
+  text-align: center;
+}
+
+.activate-sub {
+  width: 190px;
+  margin-top: 2px;
+  color: #a5a6b0;
+  font-size: 15px;
+  line-height: 19px;
+  text-align: center;
+}
+
+.activate-trial {
+  width: 190px;
+  margin-top: 1px;
+  color: #d8b75e;
+  font-size: 12px;
+  line-height: 15px;
+  text-align: center;
+}
+
+.activate-code-box {
+  width: 150px;
+  height: 44px;
+  margin-top: 4px;
+  border-radius: 8px;
+  background-color: #10131d;
+  align-items: center;
+  justify-content: center;
+}
+
+.activate-label {
+  width: 190px;
+  margin-top: 2px;
+  color: #9d9faa;
+  font-size: 14px;
+  line-height: 16px;
+  text-align: center;
+}
+
+.activate-device {
+  width: 150px;
+  color: #ffffff;
+  font-size: 28px;
+  line-height: 36px;
+  text-align: center;
+  font-weight: bold;
+}
+
+.activate-tip {
+  width: 150px;
+  color: #676a76;
+  font-size: 11px;
+  line-height: 14px;
+  text-align: center;
+}
+
+.activate-qr {
+  width: 92px;
+  height: 92px;
+  margin-top: 5px;
+  background-color: #ffffff;
+}
+
+.activate-help {
+  width: 190px;
+  margin-top: 5px;
+  color: #9d9faa;
+  font-size: 13px;
+  line-height: 16px;
+  text-align: center;
+}
+
+.activate-input {
+  width: 138px;
+  height: 28px;
+  margin-top: 3px;
+  border-radius: 14px;
+  background-color: #171a22;
+  color: #ffffff;
+  font-size: 18px;
+  line-height: 28px;
+  text-align: center;
+}
+
+.activate-keypad {
+  width: 150px;
+  height: 104px;
+  margin-top: 5px;
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.key {
+  width: 38px;
+  height: 23px;
+  margin-left: 4px;
+  margin-right: 4px;
+  margin-bottom: 3px;
+  border-radius: 12px;
+  background-color: #1c2129;
+  color: #ffffff;
+  font-size: 16px;
+  line-height: 23px;
+  text-align: center;
+}
+
+.key-alt {
+  color: #d8b75e;
+}
+
+.activate-submit {
+  width: 128px;
+  height: 30px;
+  margin-top: 0px;
+  border-radius: 15px;
+  background-color: #2468ff;
+  color: #ffffff;
+  font-size: 15px;
+  line-height: 30px;
+  text-align: center;
+}
+
+.activate-message {
+  width: 184px;
+  margin-top: 3px;
+  color: #d8b75e;
+  font-size: 12px;
+  line-height: 14px;
+  text-align: center;
 }
 
 </style>
