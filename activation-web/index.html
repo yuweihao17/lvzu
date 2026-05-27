@@ -91,6 +91,7 @@
       }
 
       input,
+      select,
       textarea {
         width: 100%;
         padding: 0 14px;
@@ -100,7 +101,8 @@
         outline: none;
       }
 
-      input {
+      input,
+      select {
         height: 48px;
       }
 
@@ -268,8 +270,11 @@
 
       <section class="card" id="activatePanel">
         <div class="icon">钥</div>
-        <h1>吕祖灵签激活中心</h1>
+        <h1 id="pageTitle">激活中心</h1>
         <div class="steps">购买卡密 -> 输入设备码 -> 生成激活码</div>
+
+        <label for="productSelect">产品</label>
+        <select id="productSelect"></select>
 
         <a class="buy-link" id="buyLink" href="https://www.ifdian.net/item/3f67aea8590111f1bb3652540025c377" target="_blank" rel="noopener">前往爱发电购买</a>
         <div class="buy-tip">购买后回到本页，输入收到的卡密生成激活码</div>
@@ -308,6 +313,8 @@
           </div>
 
           <h3>批量生成卡密</h3>
+          <label for="adminProductSelect">产品</label>
+          <select id="adminProductSelect"></select>
           <div class="grid">
             <div>
               <label for="cardCount">生成数量</label>
@@ -338,8 +345,21 @@
     <script>
       const API_BASE = "https://fc-mp-0279179f-524d-41cf-bc86-3414f9c4a88a.next.bspapp.com/lvzu-activation"
       const ADMIN_KEY = "lvzu_admin_secret"
+      const DEFAULT_PRODUCT_ID = "lvzu_lingqian"
+      const PRODUCTS = {
+        lvzu_lingqian: {
+          id: "lvzu_lingqian",
+          name: "吕祖灵签",
+          prefix: "LZ",
+          buyUrl: "https://www.ifdian.net/item/3f67aea8590111f1bb3652540025c377"
+        }
+      }
 
       const params = new URLSearchParams(location.search)
+      const pageTitle = document.getElementById("pageTitle")
+      const productSelect = document.getElementById("productSelect")
+      const adminProductSelect = document.getElementById("adminProductSelect")
+      const buyLink = document.getElementById("buyLink")
       const deviceInput = document.getElementById("deviceCode")
       const cardInput = document.getElementById("cardCode")
       const message = document.getElementById("message")
@@ -354,6 +374,34 @@
       const searchResults = document.getElementById("searchResults")
       const generatedOutput = document.getElementById("generatedOutput")
 
+      function normalizeProductId(value) {
+        return String(value || DEFAULT_PRODUCT_ID).replace(/[^a-zA-Z0-9_-]/g, "") || DEFAULT_PRODUCT_ID
+      }
+
+      function getProduct(id) {
+        return PRODUCTS[normalizeProductId(id)] || PRODUCTS[DEFAULT_PRODUCT_ID]
+      }
+
+      function fillProductSelect(select, selected) {
+        select.innerHTML = Object.keys(PRODUCTS).map(id => {
+          const product = PRODUCTS[id]
+          return "<option value=\"" + id + "\">" + product.name + "</option>"
+        }).join("")
+        select.value = getProduct(selected).id
+      }
+
+      function applyProduct(productId) {
+        const product = getProduct(productId)
+        productSelect.value = product.id
+        adminProductSelect.value = product.id
+        pageTitle.textContent = product.name + "激活中心"
+        buyLink.href = product.buyUrl
+        document.getElementById("cardPrefix").value = product.prefix || ""
+      }
+
+      fillProductSelect(productSelect, params.get("product"))
+      fillProductSelect(adminProductSelect, params.get("product"))
+      applyProduct(params.get("product"))
       deviceInput.value = (params.get("device") || "").replace(/[^0-9]/g, "").slice(0, 8)
       adminSecretInput.value = localStorage.getItem(ADMIN_KEY) || ""
       setAdminState(false)
@@ -417,6 +465,7 @@
         const canReset = item.card_code ? "<button class=\"danger\" data-reset=\"" + item.card_code + "\" type=\"button\">解绑重置</button>" : ""
         return "<div class=\"record\">" +
           "<div class=\"record-title\"><span>" + type + "：" + cardCode + "</span>" + canReset + "</div>" +
+          row("产品", item.product_id || DEFAULT_PRODUCT_ID) +
           row("状态", item.status) +
           row("设备码", item.bound_device_code || item.device_code) +
           row("激活码", item.activation_code) +
@@ -443,6 +492,8 @@
       }
 
       document.getElementById("showActivate").addEventListener("click", () => showPanel("activate"))
+      productSelect.addEventListener("change", () => applyProduct(productSelect.value))
+      adminProductSelect.addEventListener("change", () => applyProduct(adminProductSelect.value))
       document.getElementById("showAdmin").addEventListener("click", () => {
         showPanel("admin")
         setAdminState(false)
@@ -466,7 +517,7 @@
         }
 
         try {
-          const data = await api("/activate", { cardCode, deviceCode })
+          const data = await api("/activate", { productId: productSelect.value, cardCode, deviceCode })
           if (!data.ok) {
             message.textContent = data.message || "激活失败"
             return
@@ -512,6 +563,7 @@
         setAdminMessage("")
         try {
           const data = await api("/admin/generate-cards", {
+            productId: adminProductSelect.value,
             count: document.getElementById("cardCount").value,
             prefix: document.getElementById("cardPrefix").value
           }, true)
@@ -548,7 +600,7 @@
           return
         }
         try {
-          const data = await api("/admin/import-cards", { cards }, true)
+          const data = await api("/admin/import-cards", { productId: adminProductSelect.value, cards }, true)
           if (!data.ok) {
             setAdminMessage(data.message || "导入失败")
             return
@@ -568,7 +620,7 @@
           return
         }
         try {
-          const data = await api("/admin/search", { keyword }, true)
+          const data = await api("/admin/search", { productId: adminProductSelect.value, keyword }, true)
           if (!data.ok) {
             setAdminMessage(data.message || "查询失败")
             return
@@ -584,7 +636,7 @@
         if (!cardCode) return
         if (!confirm("确定解绑并重置卡密 " + cardCode + " 吗？")) return
         try {
-          const data = await api("/admin/reset-card", { cardCode }, true)
+          const data = await api("/admin/reset-card", { productId: adminProductSelect.value, cardCode }, true)
           if (!data.ok) {
             setAdminMessage(data.message || "重置失败")
             return

@@ -11,10 +11,22 @@ const CONFIG = {
   afdianUserId: localConfig.afdianUserId || "1b9cd46856a311f1b71e52540025c377",
   afdianApiToken: localConfig.afdianApiToken || "",
   adminSecret: localConfig.adminSecret || "",
-  activationSalt: localConfig.activationSalt || "lvzu-lingqian-change-before-release"
+  defaultProductId: localConfig.defaultProductId || "lvzu_lingqian",
+  activationSalt: localConfig.activationSalt || "lvzu-lingqian-change-before-release",
+  products: localConfig.products || {}
 }
 
 const db = uniCloud.database()
+const DEFAULT_PRODUCTS = {
+  lvzu_lingqian: {
+    id: "lvzu_lingqian",
+    name: "吕祖灵签",
+    prefix: "LZ",
+    buyUrl: "https://www.ifdian.net/item/3f67aea8590111f1bb3652540025c377",
+    activationSalt: CONFIG.activationSalt
+  }
+}
+const PRODUCTS = Object.assign({}, DEFAULT_PRODUCTS, CONFIG.products || {})
 
 function json(statusCode, data) {
   return {
@@ -52,8 +64,19 @@ function normalizeDeviceCode(value) {
   return String(value || "").replace(/[^0-9]/g, "").slice(0, 8)
 }
 
-function makeActivationCode(deviceCode) {
-  const source = CONFIG.activationSalt + ":" + normalizeDeviceCode(deviceCode) + ":" + CONFIG.afdianUserId
+function normalizeProductId(value) {
+  return String(value || CONFIG.defaultProductId || "lvzu_lingqian").trim().replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 48) || "lvzu_lingqian"
+}
+
+function getProduct(productId) {
+  const id = normalizeProductId(productId)
+  const product = PRODUCTS[id] || PRODUCTS[CONFIG.defaultProductId] || DEFAULT_PRODUCTS.lvzu_lingqian
+  return Object.assign({ id }, product, { id: product.id || id })
+}
+
+function makeActivationCode(productId, deviceCode) {
+  const product = getProduct(productId)
+  const source = (product.activationSalt || CONFIG.activationSalt) + ":" + product.id + ":" + normalizeDeviceCode(deviceCode) + ":" + CONFIG.afdianUserId
   let hash = 0
   for (let i = 0; i < source.length; i++) {
     hash = (hash * 131 + source.charCodeAt(i)) % 1000000007
@@ -103,9 +126,11 @@ async function saveWebhookOrder(body) {
   const orderNo = normalizeCard(data.out_trade_no || data.order_no || data.trade_no)
   if (!orderNo) return
 
+  const productId = normalizeProductId(data.product_id || data.productId || CONFIG.defaultProductId)
   const cardCode = normalizeCard(data.card_code || data.redeem_code || data.redeem_id || orderNo)
   const record = {
     order_no: orderNo,
+    product_id: productId,
     card_code: cardCode,
     user_id: data.user_id || "",
     plan_id: data.plan_id || "",
@@ -119,6 +144,7 @@ async function saveWebhookOrder(body) {
   const exists = await db.collection("lvzu_afdian_orders").where({ order_no: orderNo }).limit(1).get()
   if (exists.data && exists.data.length) {
     await db.collection("lvzu_afdian_orders").doc(exists.data[0]._id).update({
+      product_id: productId,
       card_code: cardCode,
       raw: data,
       updated_at: now()
@@ -128,23 +154,32 @@ async function saveWebhookOrder(body) {
   await db.collection("lvzu_afdian_orders").add(record)
 }
 
-async function findCard(cardCode) {
-  const cards = await db.collection("lvzu_cards").where({ card_code: cardCode }).limit(1).get()
-  if (cards.data && cards.data.length) return { type: "card", data: cards.data[0] }
+async function findCard(productId, cardCode) {
+  const product = getProduct(productId)
+  const cards = await db.collection("lvzu_cards").where({ card_code: cardCode }).limit(5).get()
+  if (cards.data && cards.data.length) {
+    const row = cards.data.find(item => normalizeProductId(item.product_id) === product.id || !item.product_id && product.id === CONFIG.defaultProductId)
+    if (row) return { type: "card", data: row }
+  }
 
-  const orders = await db.collection("lvzu_afdian_orders").where({ card_code: cardCode }).limit(1).get()
-  if (orders.data && orders.data.length) return { type: "order", data: orders.data[0] }
+  const orders = await db.collection("lvzu_afdian_orders").where({ card_code: cardCode }).limit(5).get()
+  if (orders.data && orders.data.length) {
+    const row = orders.data.find(item => normalizeProductId(item.product_id) === product.id || !item.product_id && product.id === CONFIG.defaultProductId)
+    if (row) return { type: "order", data: row }
+  }
 
   return null
 }
 
 async function activate(body) {
+  const productId = normalizeProductId(body.productId || body.product_id)
+  const product = getProduct(productId)
   const cardCode = normalizeCard(body.cardCode || body.card_code)
   const deviceCode = normalizeDeviceCode(body.deviceCode || body.device_code)
   if (!cardCode) return json(400, { ok: false, message: "请输入卡密" })
   if (deviceCode.length !== 8) return json(400, { ok: false, message: "请输入 8 位设备码" })
 
-  const card = await findCard(cardCode)
+  const card = await findCard(product.id, cardCode)
   if (!card) return json(404, { ok: false, message: "卡密不存在，请确认购买后收到的卡密" })
 
   const current = card.data
@@ -152,9 +187,10 @@ async function activate(body) {
     return json(403, { ok: false, message: "卡密已绑定其他设备" })
   }
 
-  const activationCode = makeActivationCode(deviceCode)
+  const activationCode = makeActivationCode(product.id, deviceCode)
   const collection = card.type === "card" ? "lvzu_cards" : "lvzu_afdian_orders"
   await db.collection(collection).doc(current._id).update({
+    product_id: current.product_id || product.id,
     status: "used",
     bound_device_code: deviceCode,
     activation_code: activationCode,
@@ -163,6 +199,7 @@ async function activate(body) {
   })
 
   await db.collection("lvzu_activations").add({
+    product_id: product.id,
     card_code: cardCode,
     source_type: card.type,
     source_id: current._id,
@@ -182,15 +219,17 @@ async function importCards(event, body) {
   const authError = requireAdmin(event, body)
   if (authError) return json(401, { ok: false, message: authError })
 
+  const product = getProduct(body.productId || body.product_id)
   const cards = Array.isArray(body.cards) ? body.cards.map(normalizeCard).filter(Boolean) : []
   if (!cards.length) return json(400, { ok: false, message: "请输入 cards 数组" })
 
   let created = 0
   for (let i = 0; i < cards.length; i++) {
     const cardCode = cards[i]
-    const exists = await db.collection("lvzu_cards").where({ card_code: cardCode }).limit(1).get()
-    if (exists.data && exists.data.length) continue
+    const exists = await db.collection("lvzu_cards").where({ card_code: cardCode }).limit(5).get()
+    if (exists.data && exists.data.some(item => normalizeProductId(item.product_id) === product.id || !item.product_id && product.id === CONFIG.defaultProductId)) continue
     await db.collection("lvzu_cards").add({
+      product_id: product.id,
       card_code: cardCode,
       status: "new",
       created_at: now(),
@@ -198,15 +237,16 @@ async function importCards(event, body) {
     })
     created += 1
   }
-  return json(200, { ok: true, created })
+  return json(200, { ok: true, productId: product.id, created })
 }
 
 async function generateCards(event, body) {
   const authError = requireAdmin(event, body)
   if (authError) return json(401, { ok: false, message: authError })
 
+  const product = getProduct(body.productId || body.product_id)
   const count = Math.max(1, Math.min(parseInt(body.count, 10) || 1, 500))
-  const prefix = normalizeCard(body.prefix || "LZ")
+  const prefix = normalizeCard(body.prefix || product.prefix || "LZ")
   const cards = []
   let attempts = 0
 
@@ -215,10 +255,11 @@ async function generateCards(event, body) {
     const cardCode = randomCardCode(prefix)
     if (cards.indexOf(cardCode) >= 0) continue
 
-    const exists = await db.collection("lvzu_cards").where({ card_code: cardCode }).limit(1).get()
-    if (exists.data && exists.data.length) continue
+    const exists = await db.collection("lvzu_cards").where({ card_code: cardCode }).limit(5).get()
+    if (exists.data && exists.data.some(item => normalizeProductId(item.product_id) === product.id || !item.product_id && product.id === CONFIG.defaultProductId)) continue
 
     await db.collection("lvzu_cards").add({
+      product_id: product.id,
       card_code: cardCode,
       status: "new",
       created_at: now(),
@@ -227,7 +268,7 @@ async function generateCards(event, body) {
     cards.push(cardCode)
   }
 
-  return json(200, { ok: true, cards, text: cards.join("\n") })
+  return json(200, { ok: true, productId: product.id, cards, text: cards.join("\n") })
 }
 
 async function adminSearch(event, body) {
@@ -235,6 +276,7 @@ async function adminSearch(event, body) {
   if (authError) return json(401, { ok: false, message: authError })
 
   const rawKeyword = String(body.keyword || "").trim()
+  const productId = normalizeProductId(body.productId || body.product_id)
   const cardKeyword = normalizeCard(rawKeyword)
   const deviceKeyword = normalizeDeviceCode(rawKeyword)
   const results = {
@@ -251,6 +293,7 @@ async function adminSearch(event, body) {
     const res = await db.collection(collection).where({ [field]: value }).limit(30).get()
     const rows = res.data || []
     for (let i = 0; i < rows.length; i++) {
+      if (normalizeProductId(rows[i].product_id) !== productId && rows[i].product_id) continue
       const key = collection + ":" + rows[i]._id
       if (seen[key]) continue
       seen[key] = true
@@ -276,6 +319,7 @@ async function resetCard(event, body) {
   const authError = requireAdmin(event, body)
   if (authError) return json(401, { ok: false, message: authError })
 
+  const productId = normalizeProductId(body.productId || body.product_id)
   const cardCode = normalizeCard(body.cardCode || body.card_code)
   if (!cardCode) return json(400, { ok: false, message: "请输入卡密" })
 
@@ -285,6 +329,7 @@ async function resetCard(event, body) {
     const res = await db.collection(collections[i]).where({ card_code: cardCode }).limit(10).get()
     const rows = res.data || []
     for (let j = 0; j < rows.length; j++) {
+      if (normalizeProductId(rows[j].product_id) !== productId && rows[j].product_id) continue
       await db.collection(collections[i]).doc(rows[j]._id).update({
         status: "new",
         bound_device_code: "",
@@ -304,6 +349,18 @@ async function adminPing(event, body) {
   const authError = requireAdmin(event, body)
   if (authError) return json(401, { ok: false, message: authError })
   return json(200, { ok: true, message: "管理员验证成功" })
+}
+
+function publicProducts() {
+  return Object.keys(PRODUCTS).map(key => {
+    const product = getProduct(key)
+    return {
+      id: product.id,
+      name: product.name || product.id,
+      prefix: product.prefix || "",
+      buyUrl: product.buyUrl || ""
+    }
+  })
 }
 
 exports.main = async (event) => {
@@ -345,7 +402,9 @@ exports.main = async (event) => {
 
   return json(200, {
     ok: true,
-    name: "lvzu-activation",
+    name: "activation-center",
+    defaultProductId: CONFIG.defaultProductId,
+    products: publicProducts(),
     apiTokenConfigured: Boolean(CONFIG.afdianApiToken),
     apiSignCheckReady: verifyAfdianApiResponse({}),
     adminConfigured: Boolean(CONFIG.adminSecret),
