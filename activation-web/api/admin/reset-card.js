@@ -10,6 +10,7 @@ module.exports = async function handler(req, res) {
     const result = await resetCard(body)
     return send(res, result.status, result.data)
   } catch (err) {
-    return send(res, 500, { ok: false, message: "重置失败，请稍后重试" })
+    console.error("[admin/reset-card]", err)
+    return send(res, err.status || 500, { ok: false, message: err.message || "重置失败，请稍后重试" })
   }
 }

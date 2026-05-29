@@ -20,9 +20,15 @@ function config() {
     afdianApiToken: process.env.AFDIAN_API_TOKEN || "",
     adminSecret: process.env.ADMIN_SECRET || "",
     defaultProductId: process.env.DEFAULT_PRODUCT_ID || DEFAULT_PRODUCT_ID,
-    supabaseUrl: process.env.SUPABASE_URL || "",
+    supabaseUrl: normalizeSupabaseUrl(process.env.SUPABASE_URL || ""),
     supabaseKey: process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || ""
   }
+}
+
+function normalizeSupabaseUrl(value) {
+  const raw = String(value || "").trim().replace(/\/+$/, "")
+  if (!raw) return ""
+  return raw.replace(/\/rest\/v1$/i, "")
 }
 
 function send(res, statusCode, data) {

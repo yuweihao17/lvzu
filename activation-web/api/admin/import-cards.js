@@ -10,6 +10,7 @@ module.exports = async function handler(req, res) {
     const result = await importCards(body)
     return send(res, result.status, result.data)
   } catch (err) {
-    return send(res, 500, { ok: false, message: "导入失败，请稍后重试" })
+    console.error("[admin/import-cards]", err)
+    return send(res, err.status || 500, { ok: false, message: err.message || "导入失败，请稍后重试" })
   }
 }
