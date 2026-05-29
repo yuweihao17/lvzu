@@ -420,11 +420,18 @@
       async function api(path, body, admin) {
         const payload = body || {}
         if (admin) payload.adminSecret = adminSecretInput.value
-        const res = await fetch(API_BASE + path, {
-          method: "POST",
-          headers: { "content-type": "text/plain;charset=UTF-8" },
-          body: JSON.stringify(payload)
-        })
+        let res
+        try {
+          res = await fetch(API_BASE + path, {
+            method: "POST",
+            headers: { "content-type": "text/plain;charset=UTF-8" },
+            body: JSON.stringify(payload)
+          })
+        } catch (err) {
+          const error = new Error("当前网络无法连接激活服务器，请切换网络后重试")
+          error.cause = err
+          throw error
+        }
         const text = await res.text()
         let parsed = null
         try {
@@ -538,7 +545,7 @@
           message.classList.add("ok")
           result.hidden = false
         } catch (err) {
-          message.textContent = "网络异常，请稍后重试"
+          message.textContent = err.message || "网络异常，请稍后重试"
         }
       })
 
@@ -561,7 +568,7 @@
           setAdminState(true)
           setAdminMessage("已进入管理员中心", true)
         } catch (err) {
-          setAdminMessage("网络异常，无法验证管理员密码")
+          setAdminMessage(err.message || "网络异常，无法验证管理员密码")
         }
       })
 
@@ -587,7 +594,7 @@
           generatedOutput.value = data.text || (data.cards || []).join("\n")
           setAdminMessage("已生成 " + (data.cards || []).length + " 个卡密", true)
         } catch (err) {
-          setAdminMessage("网络异常，生成失败")
+          setAdminMessage(err.message || "网络异常，生成失败")
         }
       })
 
@@ -620,7 +627,7 @@
           }
           setAdminMessage("成功导入 " + data.created + " 个新卡密，重复卡密已跳过", true)
         } catch (err) {
-          setAdminMessage("网络异常，导入失败")
+          setAdminMessage(err.message || "网络异常，导入失败")
         }
       })
 
@@ -640,7 +647,7 @@
           }
           renderResults(data)
         } catch (err) {
-          setAdminMessage("网络异常，查询失败")
+          setAdminMessage(err.message || "网络异常，查询失败")
         }
       })
 
@@ -657,7 +664,7 @@
           setAdminMessage("已重置 " + cardCode, true)
           document.getElementById("searchBtn").click()
         } catch (err) {
-          setAdminMessage("网络异常，重置失败")
+          setAdminMessage(err.message || "网络异常，重置失败")
         }
       })
     </script>

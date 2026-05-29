@@ -1,4 +1,4 @@
-const { parseBody, requireAdmin, resetCard, send } = require("../_lib/activation")
+const { parseBody, publicErrorMessage, requireAdmin, resetCard, send } = require("../_lib/activation")
 
 module.exports = async function handler(req, res) {
   if (req.method === "OPTIONS") return send(res, 200, { ok: true })
@@ -11,6 +11,6 @@ module.exports = async function handler(req, res) {
     return send(res, result.status, result.data)
   } catch (err) {
     console.error("[admin/reset-card]", err)
-    return send(res, err.status || 500, { ok: false, message: err.message || "重置失败，请稍后重试" })
+    return send(res, err.status || 500, { ok: false, message: publicErrorMessage(err, "重置失败，请稍后重试") })
   }
 }

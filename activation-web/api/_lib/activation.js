@@ -114,6 +114,75 @@ function supabaseReady() {
   return Boolean(cfg.supabaseUrl && cfg.supabaseKey)
 }
 
+function describeError(err) {
+  if (!err) return null
+  const cause = err.cause || null
+  const info = {
+    name: err.name || "",
+    message: err.message || "",
+    status: err.status || "",
+    code: err.code || "",
+    data: err.data || null
+  }
+  if (cause) {
+    info.cause = {
+      name: cause.name || "",
+      message: cause.message || "",
+      code: cause.code || "",
+      errno: cause.errno || "",
+      syscall: cause.syscall || "",
+      hostname: cause.hostname || ""
+    }
+  }
+  return info
+}
+
+function isFetchNetworkError(err) {
+  return Boolean(err && (err.message === "fetch failed" || err.cause))
+}
+
+function publicErrorMessage(err, fallback) {
+  if (isFetchNetworkError(err)) {
+    return "服务器无法连接数据库，请稍后重试；如果一直失败，请检查 Vercel 与 Supabase 连接"
+  }
+  if (err && err.message === "Supabase 请求失败") {
+    return "数据库请求失败，请检查 Supabase 表结构、密钥和权限"
+  }
+  return (err && err.message) || fallback || "服务器异常，请稍后重试"
+}
+
+async function probeSupabase() {
+  const start = now()
+  if (!supabaseReady()) {
+    return {
+      ok: false,
+      latencyMs: 0,
+      message: "Supabase 未配置"
+    }
+  }
+
+  try {
+    const rows = await sb("lvzu_cards", {
+      query: {
+        select: "id",
+        limit: "1"
+      }
+    })
+    return {
+      ok: true,
+      latencyMs: now() - start,
+      rows: Array.isArray(rows) ? rows.length : 0
+    }
+  } catch (err) {
+    return {
+      ok: false,
+      latencyMs: now() - start,
+      message: publicErrorMessage(err),
+      error: describeError(err)
+    }
+  }
+}
+
 async function sb(path, options) {
   const cfg = config()
   if (!cfg.supabaseUrl || !cfg.supabaseKey) {
@@ -463,6 +532,8 @@ module.exports = {
   normalizeDeviceCode,
   normalizeProductId,
   parseBody,
+  probeSupabase,
+  publicErrorMessage,
   randomCardCode,
   requireAdmin,
   resetCard,

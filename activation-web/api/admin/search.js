@@ -1,4 +1,4 @@
-const { adminSearch, parseBody, requireAdmin, send } = require("../_lib/activation")
+const { adminSearch, parseBody, publicErrorMessage, requireAdmin, send } = require("../_lib/activation")
 
 module.exports = async function handler(req, res) {
   if (req.method === "OPTIONS") return send(res, 200, { ok: true })
@@ -11,6 +11,6 @@ module.exports = async function handler(req, res) {
     return send(res, result.status, result.data)
   } catch (err) {
     console.error("[admin/search]", err)
-    return send(res, err.status || 500, { ok: false, message: err.message || "查询失败，请稍后重试" })
+    return send(res, err.status || 500, { ok: false, message: publicErrorMessage(err, "查询失败，请稍后重试") })
   }
 }

@@ -1,4 +1,4 @@
-const { activate, parseBody, send } = require("./_lib/activation")
+const { activate, parseBody, publicErrorMessage, send } = require("./_lib/activation")
 
 module.exports = async function handler(req, res) {
   if (req.method === "OPTIONS") return send(res, 200, { ok: true })
@@ -10,7 +10,7 @@ module.exports = async function handler(req, res) {
     console.error("[activate]", err)
     return send(res, err.status || 500, {
       ok: false,
-      message: err.message || "服务器异常，请稍后重试"
+      message: publicErrorMessage(err)
     })
   }
 }
