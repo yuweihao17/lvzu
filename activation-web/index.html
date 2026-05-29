@@ -425,11 +425,21 @@
           headers: { "content-type": "text/plain;charset=UTF-8" },
           body: JSON.stringify(payload)
         })
-        const data = unwrapResponse(await res.json())
+        const text = await res.text()
+        let parsed = null
+        try {
+          parsed = text ? JSON.parse(text) : null
+        } catch (err) {
+          parsed = null
+        }
+        const data = unwrapResponse(parsed || text)
         if (admin && data && data.ok === false && data.message === "管理员密码错误") {
           setAdminState(false)
           localStorage.removeItem(ADMIN_KEY)
           adminSecretInput.value = ""
+        }
+        if (!res.ok && (!data || typeof data !== "object")) {
+          throw new Error("HTTP " + res.status + ": " + text.slice(0, 200))
         }
         return data
       }
