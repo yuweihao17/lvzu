@@ -187,7 +187,8 @@ async function activate(body) {
     return json(403, { ok: false, message: "卡密已绑定其他设备" })
   }
 
-  const activationCode = makeActivationCode(product.id, deviceCode)
+  const isRecovery = Boolean(current.bound_device_code)
+  const activationCode = current.activation_code || makeActivationCode(product.id, deviceCode)
   const collection = card.type === "card" ? "lvzu_cards" : "lvzu_afdian_orders"
   await db.collection(collection).doc(current._id).update({
     product_id: current.product_id || product.id,
@@ -198,20 +199,23 @@ async function activate(body) {
     updated_at: now()
   })
 
-  await db.collection("lvzu_activations").add({
-    product_id: product.id,
-    card_code: cardCode,
-    source_type: card.type,
-    source_id: current._id,
-    device_code: deviceCode,
-    activation_code: activationCode,
-    created_at: now()
-  })
+  if (!isRecovery) {
+    await db.collection("lvzu_activations").add({
+      product_id: product.id,
+      card_code: cardCode,
+      source_type: card.type,
+      source_id: current._id,
+      device_code: deviceCode,
+      activation_code: activationCode,
+      created_at: now()
+    })
+  }
 
   return json(200, {
     ok: true,
     activationCode,
-    message: current.bound_device_code ? "同一设备可重新取回激活码" : "激活码生成成功"
+    recovered: isRecovery,
+    message: isRecovery ? "已为当前设备找回激活码" : "激活码生成成功"
   })
 }
 

@@ -130,7 +130,7 @@
     <div class="screen activate-screen" if="{{step === 'activate'}}">
       <text class="activate-title">未激活</text>
       <text class="activate-sub">扫码购买或输入试用码</text>
-      <text class="activate-trial">试用码 367017 免费试用 5 分钟</text>
+      <text class="activate-trial">试用码 367017 免费求签 3 次</text>
       <div class="activate-code-box" onclick="showDeviceCode">
         <text class="activate-device">{{deviceCode}}</text>
       </div>
@@ -168,10 +168,10 @@ import { getActivationQrValue, makeActivationCode, makeDeviceCode, normalizeCode
 const DRAW_KEY = "lvzu_today_draw"
 const ACTIVATED_KEY = "lvzu_activated"
 const DEVICE_CODE_KEY = "lvzu_device_code"
-const TRIAL_END_KEY = "lvzu_trial_end"
 const TRIAL_USED_KEY = "lvzu_trial_used"
+const TRIAL_REMAIN_KEY = "lvzu_trial_remain"
 const TRIAL_CODE = "367017"
-const TRIAL_DURATION = 5 * 60 * 1000
+const TRIAL_LIMIT = 3
 const CN_DIGITS = ["零", "一", "二", "三", "四", "五", "六", "七", "八", "九"]
 
 function todayKey() {
@@ -201,7 +201,7 @@ export default {
     isActivated: false,
     isTrialActive: false,
     trialUsed: false,
-    trialEndAt: 0,
+    trialRemain: 0,
     activationInput: "",
     activationMessage: "",
     activationCodeText: "--------",
@@ -263,26 +263,26 @@ export default {
       }
     })
     storage.get({
-      key: TRIAL_END_KEY,
-      default: "",
-      success: data => {
-        const endAt = parseInt(data, 10) || 0
-        this.trialEndAt = endAt
-        this.isTrialActive = endAt > Date.now()
-      }
-    })
-    storage.get({
       key: TRIAL_USED_KEY,
       default: "",
       success: data => {
         this.trialUsed = data === "1"
       }
     })
+    storage.get({
+      key: TRIAL_REMAIN_KEY,
+      default: "",
+      success: data => {
+        const remain = parseInt(data, 10) || 0
+        this.trialRemain = remain > 0 ? remain : 0
+        this.isTrialActive = this.trialRemain > 0
+      }
+    })
   },
 
   hasAccess() {
     if (this.isActivated) return true
-    if (this.trialEndAt > Date.now()) {
+    if (this.trialRemain > 0) {
       this.isTrialActive = true
       return true
     }
@@ -346,6 +346,16 @@ export default {
     storage.set({
       key: "lvzu_current_sign",
       value: String(sign.id)
+    })
+  },
+
+  consumeTrialOnce() {
+    if (this.isActivated || this.trialRemain <= 0) return
+    this.trialRemain -= 1
+    this.isTrialActive = this.trialRemain > 0
+    storage.set({
+      key: TRIAL_REMAIN_KEY,
+      value: String(this.trialRemain)
     })
   },
 
@@ -435,6 +445,7 @@ export default {
       this.showActivation()
       return
     }
+    this.consumeTrialOnce()
     this.isDrawing = true
     this.step = "sensing"
     this.startSensingDots()
@@ -463,7 +474,7 @@ export default {
     this.clearTimers()
     this.activationInput = ""
     this.activationCodeText = "--------"
-    this.activationMessage = this.trialEndAt > Date.now() ? "试用剩余 " + Math.ceil((this.trialEndAt - Date.now()) / 60000) + " 分钟" : "激活后只需验证一次"
+    this.activationMessage = this.trialRemain > 0 ? "试用剩余 " + this.trialRemain + " 次" : "激活后只需验证一次"
     this.step = "activate"
   },
 
@@ -535,23 +546,22 @@ export default {
     this.tap()
     const code = normalizeCode(this.activationInput)
     if (code === TRIAL_CODE) {
-      if (this.trialUsed || this.trialEndAt > 0) {
+      if (this.trialUsed || this.trialRemain > 0) {
         this.activationMessage = "试用码已使用过"
         return
       }
-      const endAt = Date.now() + TRIAL_DURATION
-      this.trialEndAt = endAt
       this.isTrialActive = true
-      this.trialUsed = true
+      this.trialRemain = TRIAL_LIMIT
       storage.set({
-        key: TRIAL_END_KEY,
-        value: String(endAt),
+        key: TRIAL_REMAIN_KEY,
+        value: String(TRIAL_LIMIT),
         success: () => {
           storage.set({
             key: TRIAL_USED_KEY,
             value: "1"
           })
-          this.activationMessage = "试用已开启 5 分钟"
+          this.trialUsed = true
+          this.activationMessage = "试用已开启，可求签 3 次"
           this.step = "draw"
         }
       })

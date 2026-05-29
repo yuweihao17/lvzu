@@ -271,13 +271,13 @@
       <section class="card" id="activatePanel">
         <div class="icon">钥</div>
         <h1 id="pageTitle">激活中心</h1>
-        <div class="steps">购买卡密 -> 输入设备码 -> 生成激活码</div>
+        <div class="steps">购买卡密 -> 输入设备码 -> 生成 / 找回激活码</div>
 
         <label for="productSelect">产品</label>
         <select id="productSelect"></select>
 
         <a class="buy-link" id="buyLink" href="https://www.ifdian.net/item/3f67aea8590111f1bb3652540025c377" target="_blank" rel="noopener">前往爱发电购买</a>
-        <div class="buy-tip">购买后回到本页，输入收到的卡密生成激活码</div>
+        <div class="buy-tip">购买后回到本页，输入卡密和设备码生成或找回激活码</div>
 
         <label for="cardCode">卡密</label>
         <input id="cardCode" autocomplete="off" placeholder="输入购买后收到的卡密" />
@@ -285,7 +285,7 @@
         <label for="deviceCode">设备码</label>
         <input id="deviceCode" inputmode="numeric" maxlength="8" autocomplete="off" placeholder="输入手环显示的 8 位设备码" />
 
-        <button id="submit" type="button">生成激活码</button>
+        <button id="submit" type="button">生成 / 找回激活码</button>
         <div class="msg" id="message"></div>
 
         <div class="result" id="result" hidden>
@@ -293,7 +293,7 @@
           <div class="code" id="activationCode"></div>
         </div>
 
-        <div class="hint">卡密只绑定一台设备。删除重装后，使用同一卡密和同一设备码可以重新取回激活码。</div>
+        <div class="hint">卡密只绑定一台设备。已激活用户输入同一卡密和同一设备码，可在本页找回激活码。</div>
       </section>
 
       <section class="card hidden" id="adminPanel">
@@ -343,7 +343,7 @@
     </main>
 
     <script>
-      const API_BASE = "https://fc-mp-0279179f-524d-41cf-bc86-3414f9c4a88a.next.bspapp.com/lvzu-activation"
+      const API_BASE = "/api"
       const ADMIN_KEY = "lvzu_admin_secret"
       const DEFAULT_PRODUCT_ID = "lvzu_lingqian"
       const PRODUCTS = {
@@ -503,6 +503,7 @@
 
       document.getElementById("submit").addEventListener("click", async () => {
         message.textContent = ""
+        message.classList.remove("ok")
         result.hidden = true
 
         const cardCode = cardInput.value.trim()
@@ -523,6 +524,8 @@
             return
           }
           activationCode.textContent = data.activationCode
+          message.textContent = data.message || "激活码生成成功"
+          message.classList.add("ok")
           result.hidden = false
         } catch (err) {
           message.textContent = "网络异常，请稍后重试"

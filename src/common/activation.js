@@ -1,6 +1,6 @@
 export const ACTIVATION_USER_ID = "1b9cd46856a311f1b71e52540025c377"
 export const ACTIVATION_PRODUCT_ID = "lvzu_lingqian"
-export const ACTIVATION_URL = "https://static-mp-0279179f-524d-41cf-bc86-3414f9c4a88a.next.bspapp.com/index.html"
+export const ACTIVATION_URL = "https://act.lvzuqian.top/index.html"
 export const ACTIVATION_SALT = "lvzu-lingqian-change-before-release"
 
 export function normalizeCode(value) {
