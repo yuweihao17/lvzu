@@ -325,6 +325,64 @@ async function activate(body) {
   }
 }
 
+function isDefaultProductRecord(row, productId) {
+  return Boolean(row && (row.product_id === productId || (!row.product_id && productId === config().defaultProductId)))
+}
+
+function pickActivationRecord(rows, productId) {
+  return (rows || []).find(row => isDefaultProductRecord(row, productId) && row.activation_code)
+}
+
+async function recoverActivation(body) {
+  if (!supabaseReady()) return { status: 500, data: { ok: false, message: "数据库未配置" } }
+
+  const product = getProduct(body.productId || body.product_id)
+  const deviceCode = normalizeDeviceCode(body.deviceCode || body.device_code)
+  if (deviceCode.length !== 8) return { status: 400, data: { ok: false, message: "请输入 8 位设备码" } }
+
+  const activations = await selectRows("lvzu_activations", {
+    device_code: "eq." + deviceCode,
+    limit: "20"
+  }, 20)
+  let current = pickActivationRecord(activations, product.id)
+
+  if (!current) {
+    const cards = await selectRows("lvzu_cards", {
+      bound_device_code: "eq." + deviceCode,
+      limit: "20"
+    }, 20)
+    current = pickActivationRecord(cards, product.id)
+  }
+
+  if (!current) {
+    const orders = await selectRows("lvzu_afdian_orders", {
+      bound_device_code: "eq." + deviceCode,
+      limit: "20"
+    }, 20)
+    current = pickActivationRecord(orders, product.id)
+  }
+
+  if (!current) {
+    return {
+      status: 404,
+      data: {
+        ok: false,
+        message: "没有找到这台设备的激活记录，请先使用卡密激活"
+      }
+    }
+  }
+
+  return {
+    status: 200,
+    data: {
+      ok: true,
+      activationCode: current.activation_code,
+      recovered: true,
+      message: "已找回当前设备激活码"
+    }
+  }
+}
+
 async function importCards(body) {
   if (!supabaseReady()) return { status: 500, data: { ok: false, message: "数据库未配置" } }
 
@@ -535,6 +593,7 @@ module.exports = {
   probeSupabase,
   publicErrorMessage,
   randomCardCode,
+  recoverActivation,
   requireAdmin,
   resetCard,
   sb,

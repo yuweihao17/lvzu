@@ -271,13 +271,13 @@
       <section class="card" id="activatePanel">
         <div class="icon">钥</div>
         <h1 id="pageTitle">激活中心</h1>
-        <div class="steps">购买卡密 -> 输入设备码 -> 生成 / 找回激活码</div>
+        <div class="steps">购买卡密 -> 输入设备码 -> 生成激活码</div>
 
         <label for="productSelect">产品</label>
         <select id="productSelect"></select>
 
         <a class="buy-link" id="buyLink" href="https://www.ifdian.net/item/3f67aea8590111f1bb3652540025c377" target="_blank" rel="noopener">前往爱发电购买</a>
-        <div class="buy-tip">购买后回到本页，输入卡密和设备码生成或找回激活码</div>
+        <div class="buy-tip">首次激活请输入卡密和设备码；已激活设备可只输入设备码找回激活码</div>
 
         <label for="cardCode">卡密</label>
         <input id="cardCode" autocomplete="off" placeholder="输入购买后收到的卡密" />
@@ -285,7 +285,8 @@
         <label for="deviceCode">设备码</label>
         <input id="deviceCode" inputmode="numeric" maxlength="8" autocomplete="off" placeholder="输入手环显示的 8 位设备码" />
 
-        <button id="submit" type="button">生成 / 找回激活码</button>
+        <button id="submit" type="button">生成激活码</button>
+        <button id="recover" class="secondary" type="button">只用设备码找回激活码</button>
         <div class="msg" id="message"></div>
 
         <div class="result" id="result" hidden>
@@ -293,12 +294,12 @@
           <div class="code" id="activationCode"></div>
         </div>
 
-        <div class="hint">卡密只绑定一台设备。已激活用户输入同一卡密和同一设备码，可在本页找回激活码。</div>
+        <div class="hint">卡密只绑定一台设备。找回激活码只会查询已有激活记录，不会为未激活设备生成新激活码。</div>
       </section>
 
       <section class="card hidden" id="adminPanel">
         <h2>管理员中心</h2>
-        <div class="hint">这里用于批量生成卡密、导入卡密、查询激活记录和解绑重置。管理员密码是云函数 config.js 里的 adminSecret。</div>
+        <div class="hint">这里用于批量生成卡密、导入卡密、查询激活记录和解绑重置。管理员密码对应 Vercel 环境变量 ADMIN_SECRET。</div>
 
         <div id="adminLogin">
           <label for="adminSecret">管理员密码</label>
@@ -542,6 +543,32 @@
           }
           activationCode.textContent = data.activationCode
           message.textContent = data.message || "激活码生成成功"
+          message.classList.add("ok")
+          result.hidden = false
+        } catch (err) {
+          message.textContent = err.message || "网络异常，请稍后重试"
+        }
+      })
+
+      document.getElementById("recover").addEventListener("click", async () => {
+        message.textContent = ""
+        message.classList.remove("ok")
+        result.hidden = true
+
+        const deviceCode = deviceInput.value.replace(/[^0-9]/g, "").slice(0, 8)
+        if (deviceCode.length !== 8) {
+          message.textContent = "请输入 8 位设备码"
+          return
+        }
+
+        try {
+          const data = await api("/recover", { productId: productSelect.value, deviceCode })
+          if (!data.ok) {
+            message.textContent = data.message || "没有找到激活记录"
+            return
+          }
+          activationCode.textContent = data.activationCode
+          message.textContent = data.message || "已找回当前设备激活码"
           message.classList.add("ok")
           result.hidden = false
         } catch (err) {

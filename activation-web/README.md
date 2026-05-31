@@ -5,7 +5,8 @@
 ## 部署结构
 
 - `index.html`：用户激活页和管理员中心。
-- `api/activate.js`：用户生成/找回激活码。
+- `api/activate.js`：用户输入卡密和设备码，首次生成激活码。
+- `api/recover.js`：已激活设备只输入设备码，找回已有激活码。
 - `api/admin/*`：管理员生成卡密、导入卡密、查询、解绑。
 - `api/afdian/webhook.js`：爱发电 Webhook。
 - 数据库：Supabase Postgres，表结构请先在 Supabase SQL Editor 执行 `schema.sql`。
@@ -54,7 +55,7 @@ https://act.lvzuqian.top/index.html
 
 ## 老用户迁移
 
-老用户能否找回激活码，取决于旧 uniCloud 数据是否导入 Supabase。
+老用户能否找回激活码，取决于历史卡密数据是否已导入 Supabase。
 
 最关键的数据是：
 
@@ -77,4 +78,4 @@ updated_at
 order_no
 ```
 
-旧版 RPK 的二维码仍指向 uniCloud，已经安装旧版的用户不会自动变成 Vercel 地址。建议保留 uniCloud 一段过渡期，或者先让老用户升级新 RPK。
+旧版 RPK 的二维码如果还指向旧地址，已经安装旧版的用户不会自动切到新网页。建议统一发布新 RPK，并保留旧版一段过渡期。
