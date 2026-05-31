@@ -96,7 +96,6 @@ export default {
     shortPoemExplain: "",
     shortExplain: "",
     fullTitle: "全部释义",
-    fullText: "",
     fullLines: [],
     finalWord: "求得此签，诸事循序渐进"
   },
@@ -111,7 +110,6 @@ export default {
     this.poemSayLines = []
     this.categories = []
     this.fullLines = []
-    this.fullText = ""
   },
 
   doVibrate() {
@@ -162,7 +160,6 @@ export default {
     this.shortPoemExplain = this.clip(sign.poemExplain || "", 58)
     this.shortExplain = this.clip(sign.explain || "", 58)
     this.fullTitle = "全部释义"
-    this.fullText = ""
     this.fullLines = []
     this.viewMode = "detail"
     this.finalWord = this.buildFinalWord(sign)
@@ -172,7 +169,7 @@ export default {
     return (text || "").split(/[，；。;]/).map(item => item.trim()).filter(Boolean).slice(0, max)
   },
 
-  formatFullText(text) {
+  formatFullLines(text) {
     const source = String(text || "").replace(/\s+/g, "")
     const punctuation = "，。；？！、："
     const lines = []
@@ -187,12 +184,7 @@ export default {
       }
     }
     if (line) lines.push(line)
-    return lines.join("\n")
-  },
-
-  formatFullLines(text) {
-    const formatted = this.formatFullText(text)
-    return formatted.split("\n").filter(Boolean)
+    return lines
   },
 
   buildMeaningRow(item) {
@@ -232,7 +224,6 @@ export default {
   showFullExplain() {
     this.doVibrate()
     this.fullTitle = "全部解签"
-    this.fullText = this.formatFullText(this.sign.explain || "")
     this.fullLines = this.formatFullLines(this.sign.explain || "")
     this.viewMode = "fullMeaning"
   },
@@ -240,7 +231,6 @@ export default {
   showFullPoemExplain() {
     this.doVibrate()
     this.fullTitle = "全部解诗"
-    this.fullText = this.formatFullText(this.sign.poemExplain || "")
     this.fullLines = this.formatFullLines(this.sign.poemExplain || "")
     this.viewMode = "fullMeaning"
   },
