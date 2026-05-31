@@ -5,6 +5,6 @@
 /dist
 /build
 .husky/
-uniCloud-aliyun/cloudfunctions/lvzu-activation/config.js
 activation-web/.env
 .vercel
+.vscode/
