@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>the_wow 激活中心</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: #eef2f8;
+        color: #172033;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+      }
+
+      .wrap {
+        width: min(960px, 100%);
+        margin: 0 auto;
+        padding: 28px 16px 48px;
+      }
+
+      .topbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 16px;
+      }
+
+      .brand {
+        font-size: 26px;
+        font-weight: 800;
+      }
+
+      .topbar a {
+        color: #2563eb;
+        font-size: 14px;
+        text-decoration: none;
+      }
+
+      .layout {
+        display: grid;
+        grid-template-columns: 1.15fr 0.85fr;
+        gap: 16px;
+      }
+
+      .card {
+        padding: 22px;
+        border: 1px solid #dce3ef;
+        border-radius: 8px;
+        background: #fff;
+        box-shadow: 0 12px 28px rgba(23, 32, 51, 0.08);
+      }
+
+      h1,
+      h2,
+      h3 {
+        margin: 0;
+        line-height: 1.2;
+      }
+
+      h1 {
+        font-size: 24px;
+      }
+
+      h2 {
+        font-size: 18px;
+      }
+
+      h3 {
+        margin-top: 18px;
+        font-size: 15px;
+      }
+
+      .hint {
+        margin-top: 10px;
+        color: #657086;
+        font-size: 14px;
+        line-height: 1.6;
+      }
+
+      label {
+        display: block;
+        margin: 16px 0 8px;
+        color: #344055;
+        font-size: 14px;
+        font-weight: 700;
+      }
+
+      input,
+      select,
+      textarea {
+        width: 100%;
+        min-height: 44px;
+        padding: 10px 12px;
+        border: 1px solid #cfd8e8;
+        border-radius: 6px;
+        background: #fff;
+        color: #172033;
+        font: inherit;
+      }
+
+      textarea {
+        min-height: 180px;
+        resize: vertical;
+      }
+
+      button {
+        width: 100%;
+        min-height: 44px;
+        margin-top: 14px;
+        border: 0;
+        border-radius: 6px;
+        background: #2563eb;
+        color: #fff;
+        cursor: pointer;
+        font: inherit;
+        font-weight: 800;
+      }
+
+      button.secondary {
+        border: 1px solid #cfd8e8;
+        background: #fff;
+        color: #2563eb;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+
+      .result {
+        margin-top: 18px;
+        padding: 16px;
+        border: 1px solid #c7d2fe;
+        border-radius: 8px;
+        background: #eef2ff;
+      }
+
+      .activation-code {
+        margin-top: 8px;
+        color: #111827;
+        font-size: 28px;
+        font-weight: 900;
+        letter-spacing: 2px;
+        word-break: break-all;
+      }
+
+      .msg {
+        min-height: 22px;
+        margin-top: 12px;
+        color: #c2410c;
+        font-size: 14px;
+        line-height: 1.5;
+      }
+
+      .ok {
+        color: #15803d;
+      }
+
+      .entitlement {
+        margin-top: 10px;
+        padding: 10px 12px;
+        border: 1px solid #e4e9f2;
+        border-radius: 6px;
+        background: #fbfcff;
+        color: #475569;
+        font-size: 14px;
+        line-height: 1.5;
+      }
+
+      @media (max-width: 760px) {
+        .layout,
+        .grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="wrap">
+      <div class="topbar">
+        <div class="brand">the_wow</div>
+        <a href="/index.html">吕祖灵签激活中心</a>
+      </div>
+
+      <div class="layout">
+        <section class="card">
+          <h1>兑换与查询</h1>
+          <div class="hint">首次兑换只填卡密；后续购买新次数、永久版或升级版本时，同时填写原激活码。</div>
+
+          <label for="cardCode">兑换卡密</label>
+          <input id="cardCode" autocomplete="off" placeholder="输入平台自动发送的卡密" />
+
+          <label for="activationInput">激活码</label>
+          <input id="activationInput" autocomplete="off" placeholder="已有激活码时填写" />
+
+          <div class="grid">
+            <button id="redeemBtn" type="button">兑换卡密</button>
+            <button id="statusBtn" class="secondary" type="button">查询激活码</button>
+          </div>
+
+          <div id="userMessage" class="msg"></div>
+          <div id="userResult" class="result" hidden>
+            <div>激活码</div>
+            <div id="activationCode" class="activation-code"></div>
+            <div id="licenseSummary" class="hint"></div>
+            <div id="entitlements"></div>
+          </div>
+        </section>
+
+        <section class="card">
+          <h2>管理员生成卡密</h2>
+          <div class="hint">生成后复制到淘宝、拼多多、闲鱼的自动发货卡密池。</div>
+
+          <label for="adminSecret">管理员密码</label>
+          <input id="adminSecret" type="password" autocomplete="current-password" placeholder="Vercel ADMIN_SECRET" />
+
+          <label for="skuSelect">SKU</label>
+          <select id="skuSelect"></select>
+
+          <div class="grid">
+            <div>
+              <label for="cardCount">数量</label>
+              <input id="cardCount" type="number" min="1" max="500" value="20" />
+            </div>
+            <div>
+              <label for="cardPrefix">前缀</label>
+              <input id="cardPrefix" maxlength="8" value="WOW" />
+            </div>
+          </div>
+
+          <button id="generateBtn" type="button">生成并写入数据库</button>
+          <button id="copyBtn" class="secondary" type="button">复制生成结果</button>
+          <div id="adminMessage" class="msg"></div>
+          <textarea id="generatedOutput" readonly placeholder="生成结果"></textarea>
+        </section>
+      </div>
+    </main>
+
+    <script>
+      const API_BASE = "/api"
+      const ADMIN_KEY = "the_wow_admin_secret"
+      const TIERS = [
+        ["standard", "标准版"],
+        ["ultra", "Ultra 版"],
+        ["max", "Max 版"]
+      ]
+
+      const skuSelect = document.getElementById("skuSelect")
+      const adminSecret = document.getElementById("adminSecret")
+      const userMessage = document.getElementById("userMessage")
+      const adminMessage = document.getElementById("adminMessage")
+      const userResult = document.getElementById("userResult")
+      const activationCode = document.getElementById("activationCode")
+      const activationInput = document.getElementById("activationInput")
+      const licenseSummary = document.getElementById("licenseSummary")
+      const entitlements = document.getElementById("entitlements")
+      const generatedOutput = document.getElementById("generatedOutput")
+
+      adminSecret.value = localStorage.getItem(ADMIN_KEY) || ""
+      skuSelect.innerHTML = TIERS.map(([tier, label]) => {
+        const counted = Array.from({ length: 10 }, (_, index) => {
+          const calls = index + 1
+          return `<option value="${tier}_${calls}">${label} ${calls} 次</option>`
+        }).join("")
+        return counted + `<option value="${tier}_perm">${label} 永久</option>`
+      }).join("")
+
+      function setMessage(target, text, ok) {
+        target.textContent = text || ""
+        target.classList.toggle("ok", Boolean(ok))
+      }
+
+      async function api(path, body, admin) {
+        const payload = { ...(body || {}) }
+        if (admin) payload.adminSecret = adminSecret.value.trim()
+        const res = await fetch(API_BASE + path, {
+          method: "POST",
+          headers: { "content-type": "text/plain;charset=UTF-8" },
+          body: JSON.stringify(payload)
+        })
+        const text = await res.text()
+        let data = {}
+        try {
+          data = text ? JSON.parse(text) : {}
+        } catch (error) {
+          data = { ok: false, message: text || "服务器返回异常" }
+        }
+        if (!res.ok && data.ok !== false) data.ok = false
+        return data
+      }
+
+      function renderLicense(data) {
+        if (!data || !data.ok) return
+        activationCode.textContent = data.activationCode || ""
+        activationInput.value = data.activationCode || activationInput.value
+        licenseSummary.textContent =
+          `当前版本：${data.effectiveTier}；剩余次数：${data.remainingCalls}` +
+          (data.isPermanent ? `；永久等级：${data.permanentTier}` : "")
+        entitlements.innerHTML = (data.entitlements || []).map(item => {
+          const amount = item.isPermanent ? "永久" : `${item.remainingCalls}/${item.totalCalls} 次`
+          return `<div class="entitlement">${item.tier}：${amount}；来源卡密：${item.sourceCardCode || "-"}</div>`
+        }).join("")
+        userResult.hidden = false
+      }
+
+      document.getElementById("redeemBtn").addEventListener("click", async () => {
+        setMessage(userMessage, "")
+        userResult.hidden = true
+        const cardCode = document.getElementById("cardCode").value.trim()
+        const currentActivation = activationInput.value.trim()
+        if (!cardCode) {
+          setMessage(userMessage, "请输入卡密")
+          return
+        }
+        const data = await api("/the-wow/redeem", { cardCode, activationCode: currentActivation })
+        if (!data.ok) {
+          setMessage(userMessage, data.message || "兑换失败")
+          return
+        }
+        renderLicense(data)
+        setMessage(userMessage, data.message || "兑换成功", true)
+      })
+
+      document.getElementById("statusBtn").addEventListener("click", async () => {
+        setMessage(userMessage, "")
+        userResult.hidden = true
+        const currentActivation = activationInput.value.trim()
+        if (!currentActivation) {
+          setMessage(userMessage, "请输入激活码")
+          return
+        }
+        const data = await api("/the-wow/status", { activationCode: currentActivation })
+        if (!data.ok) {
+          setMessage(userMessage, data.message || "查询失败")
+          return
+        }
+        renderLicense(data)
+        setMessage(userMessage, "查询成功", true)
+      })
+
+      document.getElementById("generateBtn").addEventListener("click", async () => {
+        const secret = adminSecret.value.trim()
+        if (!secret) {
+          setMessage(adminMessage, "请输入管理员密码")
+          return
+        }
+        localStorage.setItem(ADMIN_KEY, secret)
+        const data = await api("/admin/the-wow/generate-cards", {
+          sku: skuSelect.value,
+          count: document.getElementById("cardCount").value,
+          prefix: document.getElementById("cardPrefix").value
+        }, true)
+        if (!data.ok) {
+          setMessage(adminMessage, data.message || "生成失败")
+          return
+        }
+        generatedOutput.value = data.text || (data.cards || []).join("\n")
+        setMessage(adminMessage, `已生成 ${(data.cards || []).length} 个卡密`, true)
+      })
+
+      document.getElementById("copyBtn").addEventListener("click", async () => {
+        if (!generatedOutput.value) {
+          setMessage(adminMessage, "没有可复制的卡密")
+          return
+        }
+        try {
+          await navigator.clipboard.writeText(generatedOutput.value)
+          setMessage(adminMessage, "已复制", true)
+        } catch (error) {
+          generatedOutput.select()
+          setMessage(adminMessage, "请手动复制文本框内容")
+        }
+      })
+    </script>
+  </body>
+</html>
