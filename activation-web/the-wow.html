@@ -285,7 +285,6 @@
 
     <script>
       const API_BASE = "/api"
-      const ADMIN_KEY = "the_wow_admin_secret"
       const TIERS = [
         ["standard", "标准版"],
         ["ultra", "Ultra 版"],
@@ -306,7 +305,6 @@
       const adminSearchMessage = document.getElementById("adminSearchMessage")
       const adminSearchResult = document.getElementById("adminSearchResult")
 
-      adminSecret.value = localStorage.getItem(ADMIN_KEY) || ""
       skuSelect.innerHTML = TIERS.map(([tier, label]) => {
         const counted = Array.from({ length: 10 }, (_, index) => {
           const calls = index + 1
@@ -446,7 +444,6 @@
           setMessage(adminMessage, "请输入管理员密码")
           return
         }
-        localStorage.setItem(ADMIN_KEY, secret)
         const data = await api("generate-cards", {
           sku: skuSelect.value,
           count: document.getElementById("cardCount").value,
@@ -487,7 +484,6 @@
           setMessage(adminSearchMessage, "请输入用户原卡密或激活码")
           return
         }
-        localStorage.setItem(ADMIN_KEY, secret)
         const data = await api("search-license", { keyword }, true)
         if (!data.ok) {
           setMessage(adminSearchMessage, data.message || "查询失败")
@@ -510,7 +506,6 @@
           setMessage(upgradeMessage, "请输入用户原卡密")
           return
         }
-        localStorage.setItem(ADMIN_KEY, secret)
         const data = await api("grant-entitlement", {
           cardCode,
           sku: upgradeSkuSelect.value
