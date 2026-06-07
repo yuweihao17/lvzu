@@ -164,11 +164,34 @@ function createWowLicenseService(options = {}) {
   const getNow = options.now || nowMs
   const makeActivationCode = options.randomActivationCode || randomActivationCode
 
+  async function resolveLicenseByUserCode(body = {}) {
+    const directActivationCode = normalizeActivationCode(body.activationCode || body.activation_code)
+    const cardCode = normalizeWowCard(body.cardCode || body.card_code || body.licenseCode || body.license_code)
+    const userCode = directActivationCode || cardCode
+    if (!userCode) return { error: { status: 400, data: { ok: false, message: "请输入卡密" } } }
+
+    const directLicense = await store.findLicense(userCode)
+    if (directLicense) {
+      return { activationCode: userCode, license: directLicense, card: cardCode ? await store.findCard(cardCode) : null }
+    }
+
+    const card = await store.findCard(userCode)
+    if (card) {
+      const boundActivationCode = normalizeActivationCode(card.activation_code)
+      if (boundActivationCode) {
+        const boundLicense = await store.findLicense(boundActivationCode)
+        if (boundLicense) return { activationCode: boundActivationCode, license: boundLicense, card }
+      }
+      return { error: { status: 404, data: { ok: false, message: "这张卡密还未激活，请先在客户端输入卡密激活" } } }
+    }
+
+    return { error: { status: 404, data: { ok: false, message: "卡密不存在或尚未激活，请检查后重试" } } }
+  }
+
   async function status(body = {}) {
-    const activationCode = normalizeActivationCode(body.activationCode || body.activation_code)
-    if (!activationCode) return { status: 400, data: { ok: false, message: "请输入激活码" } }
-    const license = await store.findLicense(activationCode)
-    if (!license) return { status: 404, data: { ok: false, message: "激活码不存在，请先用卡密兑换" } }
+    const resolved = await resolveLicenseByUserCode(body)
+    if (resolved.error) return resolved.error
+    const { activationCode, license } = resolved
     const entitlements = await store.listEntitlements(activationCode)
     return { status: 200, data: summarizeLicense(license, entitlements) }
   }
@@ -200,13 +223,16 @@ function createWowLicenseService(options = {}) {
     const sku = normalizeWowSku(card.sku || body.sku)
     const time = getNow()
     let license = null
-    let activationCode = requestedActivationCode
+    let activationCode = requestedActivationCode || cardCode
 
-    if (activationCode) {
+    if (requestedActivationCode) {
       license = await store.findLicense(activationCode)
       if (!license) return { status: 404, data: { ok: false, message: "激活码不存在，请检查后重试" } }
     } else {
-      activationCode = await withUniqueActivationCode(store, makeActivationCode)
+      license = await store.findLicense(activationCode)
+    }
+
+    if (!license) {
       license = await store.createLicense({
         product_id: PRODUCT_ID,
         activation_code: activationCode,
@@ -250,7 +276,48 @@ function createWowLicenseService(options = {}) {
       status: 200,
       data: summarizeLicense(license, entitlements, {
         redeemed: true,
-        message: requestedActivationCode ? "权益已叠加到当前激活码" : "激活码生成成功"
+        message: requestedActivationCode ? "权益已叠加到当前卡密" : "卡密激活成功"
+      })
+    }
+  }
+
+  async function grantEntitlement(body = {}) {
+    const resolved = await resolveLicenseByUserCode(body)
+    if (resolved.error) return resolved.error
+
+    const sku = normalizeWowSku(body.sku || `${body.tier || "standard"}_${body.permanent ? "perm" : body.calls || body.counts || 1}`)
+    const time = getNow()
+    const sourceCode = normalizeWowCard(body.sourceCardCode || body.source_card_code)
+      || `ADMIN-${sku.sku.toUpperCase()}-${time}`
+
+    await store.insertEntitlement({
+      product_id: PRODUCT_ID,
+      activation_code: resolved.activationCode,
+      tier: sku.tier,
+      remaining_calls: sku.permanent ? 0 : sku.calls,
+      total_calls: sku.permanent ? 0 : sku.calls,
+      is_permanent: sku.permanent,
+      source_card_code: sourceCode,
+      created_at: time,
+      updated_at: time
+    })
+    await store.insertRedemption({
+      product_id: PRODUCT_ID,
+      card_code: sourceCode,
+      activation_code: resolved.activationCode,
+      sku: sku.sku,
+      tier: sku.tier,
+      calls: sku.calls,
+      is_permanent: sku.permanent,
+      created_at: time
+    })
+
+    const entitlements = await store.listEntitlements(resolved.activationCode)
+    return {
+      status: 200,
+      data: summarizeLicense(resolved.license, entitlements, {
+        granted: true,
+        message: "已按用户原卡密升级/加次数"
       })
     }
   }
@@ -361,6 +428,7 @@ function createWowLicenseService(options = {}) {
   return {
     consume,
     generateCards,
+    grantEntitlement,
     redeem,
     status
   }

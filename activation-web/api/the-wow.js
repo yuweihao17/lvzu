@@ -32,6 +32,13 @@ module.exports = async function handler(req, res) {
       return send(res, result.status, result.data)
     }
 
+    if (action === "grant-entitlement" || action === "upgrade-card") {
+      const authError = requireAdmin(req, body)
+      if (authError) return send(res, 401, { ok: false, message: authError })
+      const result = await service.grantEntitlement(body)
+      return send(res, result.status, result.data)
+    }
+
     return send(res, 400, { ok: false, message: "未知操作" })
   } catch (err) {
     console.error("[the-wow]", err)

@@ -190,23 +190,20 @@
 
       <div class="layout">
         <section class="card">
-          <h1>兑换与查询</h1>
-          <div class="hint">首次兑换只填卡密；后续购买新次数、永久版或升级版本时，同时填写原激活码。</div>
+          <h1>卡密激活与查询</h1>
+          <div class="hint">用户只需要记住卡密。购买后输入平台发送的新卡密；联系管理员升级时，告知原卡密后重启 APP 即可生效。</div>
 
-          <label for="cardCode">兑换卡密</label>
+          <label for="cardCode">卡密</label>
           <input id="cardCode" autocomplete="off" placeholder="输入平台自动发送的卡密" />
 
-          <label for="activationInput">激活码</label>
-          <input id="activationInput" autocomplete="off" placeholder="已有激活码时填写" />
-
           <div class="grid">
-            <button id="redeemBtn" type="button">兑换卡密</button>
-            <button id="statusBtn" class="secondary" type="button">查询激活码</button>
+            <button id="redeemBtn" type="button">激活/重新激活</button>
+            <button id="statusBtn" class="secondary" type="button">查询卡密</button>
           </div>
 
           <div id="userMessage" class="msg"></div>
           <div id="userResult" class="result" hidden>
-            <div>激活码</div>
+            <div>当前卡密</div>
             <div id="activationCode" class="activation-code"></div>
             <div id="licenseSummary" class="hint"></div>
             <div id="entitlements"></div>
@@ -238,6 +235,18 @@
           <button id="copyBtn" class="secondary" type="button">复制生成结果</button>
           <div id="adminMessage" class="msg"></div>
           <textarea id="generatedOutput" readonly placeholder="生成结果"></textarea>
+
+          <h3>按已有卡密升级/加次数</h3>
+          <div class="hint">用于微信收款后的人工升级。输入用户原卡密和要叠加的 SKU，用户重启 APP 后自动生效。</div>
+
+          <label for="upgradeCardCode">用户原卡密</label>
+          <input id="upgradeCardCode" autocomplete="off" placeholder="用户告知的旧卡密" />
+
+          <label for="upgradeSkuSelect">升级 SKU</label>
+          <select id="upgradeSkuSelect"></select>
+
+          <button id="upgradeBtn" type="button">升级/加次数</button>
+          <div id="upgradeMessage" class="msg"></div>
         </section>
       </div>
     </main>
@@ -257,10 +266,11 @@
       const adminMessage = document.getElementById("adminMessage")
       const userResult = document.getElementById("userResult")
       const activationCode = document.getElementById("activationCode")
-      const activationInput = document.getElementById("activationInput")
       const licenseSummary = document.getElementById("licenseSummary")
       const entitlements = document.getElementById("entitlements")
       const generatedOutput = document.getElementById("generatedOutput")
+      const upgradeMessage = document.getElementById("upgradeMessage")
+      const upgradeSkuSelect = document.getElementById("upgradeSkuSelect")
 
       adminSecret.value = localStorage.getItem(ADMIN_KEY) || ""
       skuSelect.innerHTML = TIERS.map(([tier, label]) => {
@@ -270,6 +280,7 @@
         }).join("")
         return counted + `<option value="${tier}_perm">${label} 永久</option>`
       }).join("")
+      upgradeSkuSelect.innerHTML = skuSelect.innerHTML
 
       function setMessage(target, text, ok) {
         target.textContent = text || ""
@@ -298,7 +309,6 @@
       function renderLicense(data) {
         if (!data || !data.ok) return
         activationCode.textContent = data.activationCode || ""
-        activationInput.value = data.activationCode || activationInput.value
         licenseSummary.textContent =
           `当前版本：${data.effectiveTier}；剩余次数：${data.remainingCalls}` +
           (data.isPermanent ? `；永久等级：${data.permanentTier}` : "")
@@ -313,29 +323,28 @@
         setMessage(userMessage, "")
         userResult.hidden = true
         const cardCode = document.getElementById("cardCode").value.trim()
-        const currentActivation = activationInput.value.trim()
         if (!cardCode) {
           setMessage(userMessage, "请输入卡密")
           return
         }
-        const data = await api("redeem", { cardCode, activationCode: currentActivation })
+        const data = await api("redeem", { cardCode })
         if (!data.ok) {
-          setMessage(userMessage, data.message || "兑换失败")
+          setMessage(userMessage, data.message || "激活失败")
           return
         }
         renderLicense(data)
-        setMessage(userMessage, data.message || "兑换成功", true)
+        setMessage(userMessage, data.message || "激活成功", true)
       })
 
       document.getElementById("statusBtn").addEventListener("click", async () => {
         setMessage(userMessage, "")
         userResult.hidden = true
-        const currentActivation = activationInput.value.trim()
-        if (!currentActivation) {
-          setMessage(userMessage, "请输入激活码")
+        const cardCode = document.getElementById("cardCode").value.trim()
+        if (!cardCode) {
+          setMessage(userMessage, "请输入卡密")
           return
         }
-        const data = await api("status", { activationCode: currentActivation })
+        const data = await api("status", { cardCode })
         if (!data.ok) {
           setMessage(userMessage, data.message || "查询失败")
           return
@@ -376,6 +385,31 @@
           generatedOutput.select()
           setMessage(adminMessage, "请手动复制文本框内容")
         }
+      })
+
+      document.getElementById("upgradeBtn").addEventListener("click", async () => {
+        const secret = adminSecret.value.trim()
+        const cardCode = document.getElementById("upgradeCardCode").value.trim()
+        if (!secret) {
+          setMessage(upgradeMessage, "请输入管理员密码")
+          return
+        }
+        if (!cardCode) {
+          setMessage(upgradeMessage, "请输入用户原卡密")
+          return
+        }
+        localStorage.setItem(ADMIN_KEY, secret)
+        const data = await api("grant-entitlement", {
+          cardCode,
+          sku: upgradeSkuSelect.value
+        }, true)
+        if (!data.ok) {
+          setMessage(upgradeMessage, data.message || "升级失败")
+          return
+        }
+        renderLicense(data)
+        document.getElementById("cardCode").value = data.activationCode || cardCode
+        setMessage(upgradeMessage, data.message || "升级成功，用户重启 APP 后生效", true)
       })
     </script>
   </body>
