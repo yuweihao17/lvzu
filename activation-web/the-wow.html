@@ -276,10 +276,10 @@
         target.classList.toggle("ok", Boolean(ok))
       }
 
-      async function api(path, body, admin) {
-        const payload = { ...(body || {}) }
+      async function api(action, body, admin) {
+        const payload = { action, ...(body || {}) }
         if (admin) payload.adminSecret = adminSecret.value.trim()
-        const res = await fetch(API_BASE + path, {
+        const res = await fetch(API_BASE + "/the-wow", {
           method: "POST",
           headers: { "content-type": "text/plain;charset=UTF-8" },
           body: JSON.stringify(payload)
@@ -318,7 +318,7 @@
           setMessage(userMessage, "请输入卡密")
           return
         }
-        const data = await api("/the-wow/redeem", { cardCode, activationCode: currentActivation })
+        const data = await api("redeem", { cardCode, activationCode: currentActivation })
         if (!data.ok) {
           setMessage(userMessage, data.message || "兑换失败")
           return
@@ -335,7 +335,7 @@
           setMessage(userMessage, "请输入激活码")
           return
         }
-        const data = await api("/the-wow/status", { activationCode: currentActivation })
+        const data = await api("status", { activationCode: currentActivation })
         if (!data.ok) {
           setMessage(userMessage, data.message || "查询失败")
           return
@@ -351,7 +351,7 @@
           return
         }
         localStorage.setItem(ADMIN_KEY, secret)
-        const data = await api("/admin/the-wow/generate-cards", {
+        const data = await api("generate-cards", {
           sku: skuSelect.value,
           count: document.getElementById("cardCount").value,
           prefix: document.getElementById("cardPrefix").value
