@@ -173,6 +173,28 @@
         line-height: 1.5;
       }
 
+      .ledger {
+        margin-top: 12px;
+        padding: 12px;
+        border: 1px solid #e4e9f2;
+        border-radius: 6px;
+        background: #fbfcff;
+      }
+
+      .ledger-title {
+        color: #172033;
+        font-size: 14px;
+        font-weight: 800;
+      }
+
+      .ledger-row {
+        margin-top: 8px;
+        color: #475569;
+        font-size: 13px;
+        line-height: 1.5;
+        word-break: break-all;
+      }
+
       @media (max-width: 760px) {
         .layout,
         .grid {
@@ -236,6 +258,16 @@
           <div id="adminMessage" class="msg"></div>
           <textarea id="generatedOutput" readonly placeholder="生成结果"></textarea>
 
+          <h3>查询用户旧卡密</h3>
+          <div class="hint">用户二次购买或微信付款升级时，让用户发第一次激活用的卡密，在这里查询当前权益。</div>
+
+          <label for="adminSearchCode">用户原卡密 / 激活码</label>
+          <input id="adminSearchCode" autocomplete="off" placeholder="用户告知的旧卡密" />
+
+          <button id="adminSearchBtn" class="secondary" type="button">查询用户权益</button>
+          <div id="adminSearchMessage" class="msg"></div>
+          <div id="adminSearchResult" class="result" hidden></div>
+
           <h3>按已有卡密升级/加次数</h3>
           <div class="hint">用于微信收款后的人工升级。输入用户原卡密和要叠加的 SKU，用户重启 APP 后自动生效。</div>
 
@@ -271,6 +303,8 @@
       const generatedOutput = document.getElementById("generatedOutput")
       const upgradeMessage = document.getElementById("upgradeMessage")
       const upgradeSkuSelect = document.getElementById("upgradeSkuSelect")
+      const adminSearchMessage = document.getElementById("adminSearchMessage")
+      const adminSearchResult = document.getElementById("adminSearchResult")
 
       adminSecret.value = localStorage.getItem(ADMIN_KEY) || ""
       skuSelect.innerHTML = TIERS.map(([tier, label]) => {
@@ -317,6 +351,59 @@
           return `<div class="entitlement">${item.tier}：${amount}；来源卡密：${item.sourceCardCode || "-"}</div>`
         }).join("")
         userResult.hidden = false
+      }
+
+      function escapeHtml(value) {
+        return String(value || "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+      }
+
+      function formatItemTime(value) {
+        if (!value) return "-"
+        const number = Number(value)
+        const date = new Date(number > 9999999999 ? number : number * 1000)
+        if (Number.isNaN(date.getTime())) return escapeHtml(value)
+        return date.toLocaleString()
+      }
+
+      function tierText(tier) {
+        if (tier === "max") return "Max"
+        if (tier === "ultra") return "Ultra"
+        return "标准版"
+      }
+
+      function renderLedgerSection(title, rows, renderRow) {
+        const content = rows && rows.length
+          ? rows.map((item) => `<div class="ledger-row">${renderRow(item)}</div>`).join("")
+          : `<div class="ledger-row">暂无记录</div>`
+        return `<div class="ledger"><div class="ledger-title">${title}</div>${content}</div>`
+      }
+
+      function renderAdminSearch(data) {
+        const summary = data.summary || {}
+        const permanentText = summary.isPermanent ? `；永久等级：${tierText(summary.permanentTier)}` : ""
+        adminSearchResult.innerHTML = `
+          <div>用户卡密 / 激活码</div>
+          <div class="activation-code">${escapeHtml(data.activationCode)}</div>
+          <div class="hint">当前版本：${tierText(summary.effectiveTier)}；剩余次数：${summary.remainingCalls || 0}${permanentText}</div>
+          ${renderLedgerSection("权益明细", data.entitlements || [], (item) => {
+            const amount = item.isPermanent ? "永久" : `${item.remainingCalls}/${item.totalCalls} 次`
+            return `${tierText(item.tier)}：${amount}；来源：${escapeHtml(item.sourceCardCode)}；更新：${formatItemTime(item.updatedAt)}`
+          })}
+          ${renderLedgerSection("已兑换卡密", data.cards || [], (item) => {
+            return `${escapeHtml(item.cardCode)}；${tierText(item.tier)}；${item.isPermanent ? "永久" : `${item.callCount} 次`}；状态：${escapeHtml(item.status)}`
+          })}
+          ${renderLedgerSection("兑换/管理员加购记录", data.redemptions || [], (item) => {
+            return `${escapeHtml(item.cardCode)}；SKU：${escapeHtml(item.sku)}；${item.isPermanent ? "永久" : `${item.calls} 次`}；时间：${formatItemTime(item.createdAt)}`
+          })}
+          ${renderLedgerSection("扣次记录", data.consumptions || [], (item) => {
+            return `功能版本：${tierText(item.requiredTier)}；扣除版本：${tierText(item.chargedTier)}；数量：${item.amount}；时间：${formatItemTime(item.createdAt)}`
+          })}
+        `
+        adminSearchResult.hidden = false
       }
 
       document.getElementById("redeemBtn").addEventListener("click", async () => {
@@ -387,6 +474,31 @@
         }
       })
 
+      document.getElementById("adminSearchBtn").addEventListener("click", async () => {
+        const secret = adminSecret.value.trim()
+        const keyword = document.getElementById("adminSearchCode").value.trim()
+        setMessage(adminSearchMessage, "")
+        adminSearchResult.hidden = true
+        if (!secret) {
+          setMessage(adminSearchMessage, "请输入管理员密码")
+          return
+        }
+        if (!keyword) {
+          setMessage(adminSearchMessage, "请输入用户原卡密或激活码")
+          return
+        }
+        localStorage.setItem(ADMIN_KEY, secret)
+        const data = await api("search-license", { keyword }, true)
+        if (!data.ok) {
+          setMessage(adminSearchMessage, data.message || "查询失败")
+          return
+        }
+        renderAdminSearch(data)
+        document.getElementById("upgradeCardCode").value = data.activationCode || keyword
+        document.getElementById("cardCode").value = data.activationCode || keyword
+        setMessage(adminSearchMessage, "查询成功，已填入升级卡密", true)
+      })
+
       document.getElementById("upgradeBtn").addEventListener("click", async () => {
         const secret = adminSecret.value.trim()
         const cardCode = document.getElementById("upgradeCardCode").value.trim()
@@ -409,6 +521,7 @@
         }
         renderLicense(data)
         document.getElementById("cardCode").value = data.activationCode || cardCode
+        document.getElementById("adminSearchCode").value = data.activationCode || cardCode
         setMessage(upgradeMessage, data.message || "升级成功，用户重启 APP 后生效", true)
       })
     </script>

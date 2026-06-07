@@ -221,3 +221,41 @@ test("the_wow summary does not promote lower permanent licenses to expired highe
   const maxUse = await service.consume({ activationCode: "WOW-ACT-MIXED", requiredTier: "max" })
   assert.equal(maxUse.status, 402)
 })
+
+test("the_wow admin search returns the full operational ledger for an original card", async () => {
+  const {
+    createMemoryWowStore,
+    createWowLicenseService
+  } = loadWowLicenseModule()
+
+  const store = createMemoryWowStore({
+    cards: [
+      { card_code: "WOW-ORIGINAL-3", sku: "standard_3", status: "new" },
+      { card_code: "WOW-ULTRA-2", sku: "ultra_2", status: "new" }
+    ]
+  })
+  const service = createWowLicenseService({
+    store,
+    now: () => 5000
+  })
+
+  const activated = await service.redeem({ cardCode: "WOW-ORIGINAL-3" })
+  await service.redeem({ cardCode: "WOW-ULTRA-2", activationCode: activated.data.activationCode })
+  await service.consume({ activationCode: activated.data.activationCode, requiredTier: "standard" })
+  await service.grantEntitlement({ cardCode: "WOW-ORIGINAL-3", sku: "max_perm" })
+
+  const result = await service.searchLicense({ keyword: " wow-original-3 " })
+
+  assert.equal(result.status, 200)
+  assert.equal(result.data.ok, true)
+  assert.equal(result.data.activationCode, "WOW-ORIGINAL-3")
+  assert.equal(result.data.summary.effectiveTier, "max")
+  assert.equal(result.data.summary.isPermanent, true)
+  assert.equal(result.data.summary.permanentTier, "max")
+  assert.equal(result.data.cards.length, 2)
+  assert.deepEqual(result.data.cards.map((card) => card.cardCode).sort(), ["WOW-ORIGINAL-3", "WOW-ULTRA-2"])
+  assert.equal(result.data.entitlements.length, 3)
+  assert.equal(result.data.redemptions.length, 3)
+  assert.equal(result.data.consumptions.length, 1)
+  assert.equal(result.data.consumptions[0].chargedTier, "standard")
+})

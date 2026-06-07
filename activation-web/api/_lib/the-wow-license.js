@@ -83,6 +83,46 @@ function sortEntitlementsForUse(entitlements, requiredTier) {
     })
 }
 
+function mapCard(row) {
+  return {
+    id: String(row.id || ""),
+    cardCode: row.card_code || "",
+    sku: row.sku || "",
+    tier: normalizeTier(row.tier),
+    callCount: Math.max(0, Number(row.call_count || 0)),
+    isPermanent: !!row.is_permanent,
+    status: row.status || "",
+    activationCode: row.activation_code || "",
+    redeemedAt: row.redeemed_at || null,
+    createdAt: row.created_at || null,
+    updatedAt: row.updated_at || null
+  }
+}
+
+function mapRedemption(row) {
+  return {
+    id: String(row.id || ""),
+    cardCode: row.card_code || "",
+    activationCode: row.activation_code || "",
+    sku: row.sku || "",
+    tier: normalizeTier(row.tier),
+    calls: Math.max(0, Number(row.calls || 0)),
+    isPermanent: !!row.is_permanent,
+    createdAt: row.created_at || null
+  }
+}
+
+function mapConsumption(row) {
+  return {
+    id: String(row.id || ""),
+    activationCode: row.activation_code || "",
+    requiredTier: normalizeTier(row.required_tier),
+    chargedTier: normalizeTier(row.charged_tier),
+    amount: Math.max(0, Number(row.amount || 0)),
+    createdAt: row.created_at || null
+  }
+}
+
 function summarizeLicense(license, entitlements, extra = {}) {
   const rows = Array.isArray(entitlements) ? entitlements : []
   const remainingByTier = {
@@ -322,6 +362,36 @@ function createWowLicenseService(options = {}) {
     }
   }
 
+  async function searchLicense(body = {}) {
+    const resolved = await resolveLicenseByUserCode({
+      activationCode: body.activationCode || body.activation_code || body.keyword,
+      cardCode: body.cardCode || body.card_code || body.keyword
+    })
+    if (resolved.error) return resolved.error
+
+    const { activationCode, license } = resolved
+    const [cards, entitlements, redemptions, consumptions] = await Promise.all([
+      store.listCardsForActivation(activationCode),
+      store.listEntitlements(activationCode),
+      store.listRedemptions(activationCode),
+      store.listConsumptions(activationCode)
+    ])
+    const summary = summarizeLicense(license, entitlements)
+
+    return {
+      status: 200,
+      data: {
+        ok: true,
+        activationCode,
+        summary,
+        cards: cards.map(mapCard),
+        entitlements: summary.entitlements,
+        redemptions: redemptions.map(mapRedemption),
+        consumptions: consumptions.map(mapConsumption)
+      }
+    }
+  }
+
   async function consume(body = {}) {
     const activationCode = normalizeActivationCode(body.activationCode || body.activation_code)
     const requiredTier = normalizeTier(body.requiredTier || body.required_tier)
@@ -430,6 +500,7 @@ function createWowLicenseService(options = {}) {
     generateCards,
     grantEntitlement,
     redeem,
+    searchLicense,
     status
   }
 }
@@ -459,6 +530,9 @@ function createMemoryWowStore(seed = {}) {
       const row = data.cards.find((item) => item.card_code === cardCode)
       if (row) Object.assign(row, patch)
       return row
+    },
+    async listCardsForActivation(activationCode) {
+      return data.cards.filter((row) => row.activation_code === activationCode)
     },
     async insertCards(rows) {
       for (const row of rows) {
@@ -492,10 +566,16 @@ function createMemoryWowStore(seed = {}) {
       data.redemptions.push(redemption)
       return redemption
     },
+    async listRedemptions(activationCode) {
+      return data.redemptions.filter((row) => row.activation_code === activationCode)
+    },
     async insertConsumption(row) {
       const consumption = { id: counters.consumptions++, ...row }
       data.consumptions.push(consumption)
       return consumption
+    },
+    async listConsumptions(activationCode) {
+      return data.consumptions.filter((row) => row.activation_code === activationCode)
     }
   }
 }
@@ -517,6 +597,12 @@ function createSupabaseWowStore() {
         query: { card_code: "eq." + cardCode },
         body: patch
       }))
+    },
+    async listCardsForActivation(activationCode) {
+      const rows = await sb("wow_cards", {
+        query: { select: "*", activation_code: "eq." + activationCode, order: "id.asc" }
+      })
+      return Array.isArray(rows) ? rows : []
     },
     async insertCards(rows) {
       return sb("wow_cards", { method: "POST", body: rows })
@@ -548,8 +634,20 @@ function createSupabaseWowStore() {
     async insertRedemption(row) {
       return firstRow(await sb("wow_redemptions", { method: "POST", body: row }))
     },
+    async listRedemptions(activationCode) {
+      const rows = await sb("wow_redemptions", {
+        query: { select: "*", activation_code: "eq." + activationCode, order: "id.asc" }
+      })
+      return Array.isArray(rows) ? rows : []
+    },
     async insertConsumption(row) {
       return firstRow(await sb("wow_consumptions", { method: "POST", body: row }))
+    },
+    async listConsumptions(activationCode) {
+      const rows = await sb("wow_consumptions", {
+        query: { select: "*", activation_code: "eq." + activationCode, order: "id.asc" }
+      })
+      return Array.isArray(rows) ? rows : []
     }
   }
 }
