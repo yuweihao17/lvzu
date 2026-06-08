@@ -195,6 +195,82 @@
         word-break: break-all;
       }
 
+      .section-box {
+        margin-top: 18px;
+        padding: 14px;
+        border: 1px solid #e4e9f2;
+        border-radius: 8px;
+        background: #f8fbff;
+      }
+
+      .section-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+
+      .section-head .hint {
+        margin-top: 0;
+      }
+
+      .mini-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-top: 10px;
+      }
+
+      .mini-actions button {
+        width: auto;
+        min-width: 120px;
+        margin-top: 0;
+      }
+
+      .list {
+        margin-top: 12px;
+        display: grid;
+        gap: 10px;
+      }
+
+      .list-item {
+        padding: 12px;
+        border: 1px solid #dbe4f1;
+        border-radius: 8px;
+        background: #fff;
+      }
+
+      .list-item-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 12px;
+      }
+
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 3px 8px;
+        border-radius: 999px;
+        background: #dbeafe;
+        color: #1d4ed8;
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .badge.off {
+        background: #fef3c7;
+        color: #92400e;
+      }
+
+      .item-meta {
+        margin-top: 6px;
+        color: #6b7280;
+        font-size: 13px;
+        line-height: 1.5;
+      }
+
       @media (max-width: 760px) {
         .layout,
         .grid {
@@ -281,6 +357,87 @@
           <div id="upgradeMessage" class="msg"></div>
         </section>
       </div>
+
+      <section class="card" style="margin-top: 16px;">
+        <div class="section-head">
+          <div>
+            <h2>免费大模型管理</h2>
+            <div class="hint">网页端维护免费模型目录，客户端只读取目录与代理地址，不直接接触平台侧 key。</div>
+          </div>
+          <div class="mini-actions">
+            <button id="freeModelReloadBtn" class="secondary" type="button">刷新目录</button>
+          </div>
+        </div>
+
+        <form id="freeModelForm" class="section-box">
+          <div class="grid">
+            <div>
+              <label for="freeModelId">模型 ID</label>
+              <input id="freeModelId" placeholder="agnes-2.0-flash" />
+            </div>
+            <div>
+              <label for="freeModelName">显示名称</label>
+              <input id="freeModelName" placeholder="Agnes-2.0-Flash" />
+            </div>
+          </div>
+
+          <label for="freeModelDescription">说明</label>
+          <input id="freeModelDescription" placeholder="免费文本/多模态模型说明" />
+
+          <div class="grid">
+            <div>
+              <label for="freeModelProvider">Provider</label>
+              <input id="freeModelProvider" placeholder="openai-compatible" />
+            </div>
+            <div>
+              <label for="freeModelBaseUrl">上游地址</label>
+              <input id="freeModelBaseUrl" placeholder="https://provider.example/v1" />
+            </div>
+          </div>
+
+          <label for="freeModelApiKey">API Key</label>
+          <input id="freeModelApiKey" type="password" placeholder="仅保存到网页端，不下发给客户端" />
+
+          <div class="grid">
+            <div>
+              <label for="freeModelPriority">优先级</label>
+              <input id="freeModelPriority" type="number" value="0" />
+            </div>
+            <div>
+              <label for="freeModelSupportsMultimodal">能力</label>
+              <select id="freeModelSupportsMultimodal">
+                <option value="false">文本模型</option>
+                <option value="true">多模态模型</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="grid">
+            <div>
+              <label for="freeModelEnabled">状态</label>
+              <select id="freeModelEnabled">
+                <option value="true">启用</option>
+                <option value="false">停用</option>
+              </select>
+            </div>
+            <div>
+              <label for="freeModelStream">输出方式</label>
+              <select id="freeModelStream">
+                <option value="true">流式</option>
+                <option value="false">非流式</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="mini-actions">
+            <button id="freeModelSaveBtn" type="submit">保存模型</button>
+            <button id="freeModelClearBtn" class="secondary" type="button">清空表单</button>
+          </div>
+          <div id="freeModelMessage" class="msg"></div>
+        </form>
+
+        <div id="freeModelList" class="list"></div>
+      </section>
     </main>
 
     <script>
@@ -304,6 +461,19 @@
       const upgradeSkuSelect = document.getElementById("upgradeSkuSelect")
       const adminSearchMessage = document.getElementById("adminSearchMessage")
       const adminSearchResult = document.getElementById("adminSearchResult")
+      const freeModelMessage = document.getElementById("freeModelMessage")
+      const freeModelList = document.getElementById("freeModelList")
+      const freeModelForm = document.getElementById("freeModelForm")
+      const freeModelId = document.getElementById("freeModelId")
+      const freeModelName = document.getElementById("freeModelName")
+      const freeModelDescription = document.getElementById("freeModelDescription")
+      const freeModelProvider = document.getElementById("freeModelProvider")
+      const freeModelBaseUrl = document.getElementById("freeModelBaseUrl")
+      const freeModelApiKey = document.getElementById("freeModelApiKey")
+      const freeModelPriority = document.getElementById("freeModelPriority")
+      const freeModelSupportsMultimodal = document.getElementById("freeModelSupportsMultimodal")
+      const freeModelEnabled = document.getElementById("freeModelEnabled")
+      const freeModelStream = document.getElementById("freeModelStream")
 
       skuSelect.innerHTML = TIERS.map(([tier, label]) => {
         const counted = Array.from({ length: 10 }, (_, index) => {
@@ -402,6 +572,84 @@
           })}
         `
         adminSearchResult.hidden = false
+      }
+
+      function resetFreeModelForm() {
+        freeModelForm.dataset.editing = ""
+        freeModelId.disabled = false
+        freeModelId.value = ""
+        freeModelName.value = ""
+        freeModelDescription.value = ""
+        freeModelProvider.value = "free"
+        freeModelBaseUrl.value = ""
+        freeModelApiKey.value = ""
+        freeModelPriority.value = "0"
+        freeModelSupportsMultimodal.value = "false"
+        freeModelEnabled.value = "true"
+        freeModelStream.value = "true"
+      }
+
+      function fillFreeModelForm(model) {
+        freeModelForm.dataset.editing = model.id
+        freeModelId.value = model.id || ""
+        freeModelId.disabled = true
+        freeModelName.value = model.name || ""
+        freeModelDescription.value = model.description || ""
+        freeModelProvider.value = model.provider || "free"
+        freeModelBaseUrl.value = model.baseUrl || ""
+        freeModelApiKey.value = ""
+        freeModelPriority.value = String(model.priority ?? 0)
+        freeModelSupportsMultimodal.value = model.supportsMultimodal ? "true" : "false"
+        freeModelEnabled.value = model.enabled ? "true" : "false"
+        freeModelStream.value = model.stream === false ? "false" : "true"
+      }
+
+      function renderFreeModels(models, adminView) {
+        if (!models || !models.length) {
+          freeModelList.innerHTML = '<div class="item-meta">当前没有免费模型，客户端会显示空态。</div>'
+          return
+        }
+        freeModelList.innerHTML = models.map((model) => `
+          <div class="list-item">
+            <div class="list-item-head">
+              <div>
+                <strong>${escapeHtml(model.name)}</strong>
+                <div class="item-meta">${escapeHtml(model.id)} · ${escapeHtml(model.description || "-")}</div>
+              </div>
+              <span class="badge ${model.enabled ? "" : "off"}">${model.enabled ? "启用" : "停用"}</span>
+            </div>
+            <div class="item-meta">
+              Provider: ${escapeHtml(model.provider || "-")} ·
+              多模态: ${model.supportsMultimodal ? "是" : "否"} ·
+              流式: ${model.stream ? "是" : "否"} ·
+              优先级: ${escapeHtml(model.priority)}
+              ${model.hasApiKey ? " · Key 已配置" : " · 未配置 Key"}
+            </div>
+            ${adminView ? `
+              <div class="mini-actions">
+                <button type="button" data-edit="${escapeHtml(model.id)}" class="secondary">编辑</button>
+                <button type="button" data-toggle="${escapeHtml(model.id)}" class="secondary">${model.enabled ? "停用" : "启用"}</button>
+                <button type="button" data-delete="${escapeHtml(model.id)}" class="secondary">删除</button>
+              </div>
+            ` : ''}
+          </div>
+        `).join("")
+      }
+
+      async function loadFreeModels() {
+        const adminView = Boolean(adminSecret.value.trim())
+        const data = await api("list-free-models", adminView ? { adminView: true } : {}, adminView)
+        if (!data.ok) {
+          setMessage(freeModelMessage, data.message || "加载免费模型失败")
+          freeModelList.innerHTML = ""
+          return
+        }
+        renderFreeModels(data.models || [], adminView)
+        setMessage(
+          freeModelMessage,
+          adminView ? `已加载 ${data.models.length} 个免费模型（管理员视图）` : `已加载 ${data.models.length} 个免费模型`,
+          true
+        )
       }
 
       document.getElementById("redeemBtn").addEventListener("click", async () => {
@@ -519,6 +767,83 @@
         document.getElementById("adminSearchCode").value = data.activationCode || cardCode
         setMessage(upgradeMessage, data.message || "升级成功，用户重启 APP 后生效", true)
       })
+
+      document.getElementById("freeModelSaveBtn").addEventListener("click", async (event) => {
+        event.preventDefault()
+        const secret = adminSecret.value.trim()
+        if (!secret) {
+          setMessage(freeModelMessage, "请输入管理员密码")
+          return
+        }
+        const data = await api("upsert-free-model", {
+          modelId: freeModelId.value.trim(),
+          name: freeModelName.value.trim(),
+          description: freeModelDescription.value.trim(),
+          provider: freeModelProvider.value.trim(),
+          baseUrl: freeModelBaseUrl.value.trim(),
+          apiKey: freeModelApiKey.value.trim(),
+          priority: freeModelPriority.value,
+          supportsMultimodal: freeModelSupportsMultimodal.value === "true",
+          enabled: freeModelEnabled.value === "true",
+          stream: freeModelStream.value === "true"
+        }, true)
+        if (!data.ok) {
+          setMessage(freeModelMessage, data.message || "保存失败")
+          return
+        }
+        fillFreeModelForm(data.model)
+        await loadFreeModels()
+        setMessage(freeModelMessage, "保存成功", true)
+      })
+
+      document.getElementById("freeModelClearBtn").addEventListener("click", () => {
+        resetFreeModelForm()
+        setMessage(freeModelMessage, "")
+      })
+
+      document.getElementById("freeModelReloadBtn").addEventListener("click", loadFreeModels)
+
+      freeModelList.addEventListener("click", async (event) => {
+        if (!adminSecret.value.trim()) return
+        const editId = event.target && event.target.dataset ? event.target.dataset.edit : ""
+        const toggleId = event.target && event.target.dataset ? event.target.dataset.toggle : ""
+        const deleteId = event.target && event.target.dataset ? event.target.dataset.delete : ""
+        if (editId) {
+          const data = await api("list-free-models", { adminView: true }, true)
+          const model = (data.models || []).find((item) => item.id === editId)
+          if (model) fillFreeModelForm(model)
+          return
+        }
+        if (toggleId) {
+          const current = (await api("list-free-models", { adminView: true }, true)).models || []
+          const model = current.find((item) => item.id === toggleId)
+          if (!model) return
+          const result = await api("set-free-model-enabled", {
+            modelId: toggleId,
+            enabled: !model.enabled
+          }, true)
+          if (!result.ok) {
+            setMessage(freeModelMessage, result.message || "切换失败")
+            return
+          }
+          await loadFreeModels()
+          setMessage(freeModelMessage, "状态已更新", true)
+          return
+        }
+        if (deleteId) {
+          const result = await api("delete-free-model", { modelId: deleteId }, true)
+          if (!result.ok) {
+            setMessage(freeModelMessage, result.message || "删除失败")
+            return
+          }
+          resetFreeModelForm()
+          await loadFreeModels()
+          setMessage(freeModelMessage, "已删除", true)
+        }
+      })
+
+      resetFreeModelForm()
+      loadFreeModels()
     </script>
   </body>
 </html>
