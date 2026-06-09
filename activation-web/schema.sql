@@ -124,8 +124,25 @@ create table if not exists public.wow_free_models (
   updated_at bigint not null
 );
 
+create table if not exists public.wow_model_providers (
+  id bigserial primary key,
+  product_id text not null default 'the_wow',
+  provider_id text not null unique,
+  name text not null,
+  description text not null default '',
+  base_url text not null default '',
+  api_key_header text not null default 'authorization-bearer',
+  supports_multimodal boolean not null default true,
+  enabled boolean not null default true,
+  priority integer not null default 0,
+  stream boolean not null default true,
+  created_at bigint not null,
+  updated_at bigint not null
+);
+
 create index if not exists idx_wow_cards_activation on public.wow_cards(activation_code);
 create index if not exists idx_wow_entitlements_activation on public.wow_license_entitlements(activation_code);
 create index if not exists idx_wow_redemptions_card on public.wow_redemptions(card_code);
 create index if not exists idx_wow_consumptions_activation on public.wow_consumptions(activation_code);
 create unique index if not exists idx_wow_free_models_model_id on public.wow_free_models(model_id);
+create unique index if not exists idx_wow_model_providers_provider_id on public.wow_model_providers(provider_id);

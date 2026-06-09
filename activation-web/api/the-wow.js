@@ -1,5 +1,6 @@
 const { parseBody, publicErrorMessage, requireAdmin, send } = require("./_lib/activation")
 const { createFreeModelService } = require("./_lib/free-models")
+const { createModelProviderService } = require("./_lib/model-providers")
 const { createWowLicenseService } = require("./_lib/the-wow-license")
 
 module.exports = async function handler(req, res) {
@@ -10,6 +11,7 @@ module.exports = async function handler(req, res) {
   const action = String(body.action || "").trim().toLowerCase()
   const service = createWowLicenseService()
   const freeModelService = createFreeModelService()
+  const modelProviderService = createModelProviderService()
 
   try {
     if (action === "redeem") {
@@ -80,6 +82,40 @@ module.exports = async function handler(req, res) {
       const authError = requireAdmin(req, body)
       if (authError) return send(res, 401, { ok: false, message: authError })
       const result = await freeModelService.deleteModel(body)
+      return send(res, result.status, result.data)
+    }
+
+    if (action === "list-model-providers") {
+      const adminView = String(body.adminView || body.admin_view || "").toLowerCase() === "true"
+      if (adminView) {
+        const authError = requireAdmin(req, body)
+        if (authError) return send(res, 401, { ok: false, message: authError })
+      }
+      const result = await modelProviderService.listCatalog({
+        ...body,
+        adminView
+      })
+      return send(res, result.status, result.data)
+    }
+
+    if (action === "upsert-model-provider") {
+      const authError = requireAdmin(req, body)
+      if (authError) return send(res, 401, { ok: false, message: authError })
+      const result = await modelProviderService.upsertProvider(body)
+      return send(res, result.status, result.data)
+    }
+
+    if (action === "set-model-provider-enabled") {
+      const authError = requireAdmin(req, body)
+      if (authError) return send(res, 401, { ok: false, message: authError })
+      const result = await modelProviderService.setProviderEnabled(body)
+      return send(res, result.status, result.data)
+    }
+
+    if (action === "delete-model-provider") {
+      const authError = requireAdmin(req, body)
+      if (authError) return send(res, 401, { ok: false, message: authError })
+      const result = await modelProviderService.deleteProvider(body)
       return send(res, result.status, result.data)
     }
 

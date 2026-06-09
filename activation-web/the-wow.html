@@ -438,6 +438,86 @@
 
         <div id="freeModelList" class="list"></div>
       </section>
+
+      <section class="card" style="margin-top: 16px;">
+        <div class="section-head">
+          <div>
+            <h2>APP 大模型提供商管理</h2>
+            <div class="hint">网页端维护客户端展示的厂商目录；用户 API Key 只保存在用户电脑本地。</div>
+          </div>
+          <div class="mini-actions">
+            <button id="modelProviderReloadBtn" class="secondary" type="button">刷新目录</button>
+          </div>
+        </div>
+
+        <form id="modelProviderForm" class="section-box">
+          <div class="grid">
+            <div>
+              <label for="modelProviderId">提供商 ID</label>
+              <input id="modelProviderId" placeholder="deepseek" />
+            </div>
+            <div>
+              <label for="modelProviderName">显示名称</label>
+              <input id="modelProviderName" placeholder="DeepSeek AI" />
+            </div>
+          </div>
+
+          <label for="modelProviderDescription">说明</label>
+          <input id="modelProviderDescription" placeholder="在客户端展示的厂商说明" />
+
+          <label for="modelProviderBaseUrl">API URL</label>
+          <input id="modelProviderBaseUrl" placeholder="https://api.deepseek.com" />
+
+          <div class="grid">
+            <div>
+              <label for="modelProviderApiKeyHeader">鉴权方式</label>
+              <select id="modelProviderApiKeyHeader">
+                <option value="authorization-bearer">Authorization: Bearer</option>
+                <option value="api-key">api-key</option>
+              </select>
+            </div>
+            <div>
+              <label for="modelProviderPriority">优先级</label>
+              <input id="modelProviderPriority" type="number" value="0" />
+            </div>
+          </div>
+
+          <div class="grid">
+            <div>
+              <label for="modelProviderSupportsMultimodal">能力</label>
+              <select id="modelProviderSupportsMultimodal">
+                <option value="true">多模态</option>
+                <option value="false">仅文本</option>
+              </select>
+            </div>
+            <div>
+              <label for="modelProviderEnabled">状态</label>
+              <select id="modelProviderEnabled">
+                <option value="true">启用</option>
+                <option value="false">停用</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="grid">
+            <div>
+              <label for="modelProviderStream">输出方式</label>
+              <select id="modelProviderStream">
+                <option value="true">流式</option>
+                <option value="false">非流式</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="mini-actions">
+            <button id="modelProviderSaveBtn" type="submit">保存提供商</button>
+            <button id="modelProviderClearBtn" class="secondary" type="button">清空表单</button>
+          </div>
+          <div id="modelProviderMessage" class="msg"></div>
+        </form>
+
+        <div id="modelProviderList" class="list"></div>
+      </section>
     </main>
 
     <script>
@@ -474,6 +554,18 @@
       const freeModelSupportsMultimodal = document.getElementById("freeModelSupportsMultimodal")
       const freeModelEnabled = document.getElementById("freeModelEnabled")
       const freeModelStream = document.getElementById("freeModelStream")
+      const modelProviderMessage = document.getElementById("modelProviderMessage")
+      const modelProviderList = document.getElementById("modelProviderList")
+      const modelProviderForm = document.getElementById("modelProviderForm")
+      const modelProviderId = document.getElementById("modelProviderId")
+      const modelProviderName = document.getElementById("modelProviderName")
+      const modelProviderDescription = document.getElementById("modelProviderDescription")
+      const modelProviderBaseUrl = document.getElementById("modelProviderBaseUrl")
+      const modelProviderApiKeyHeader = document.getElementById("modelProviderApiKeyHeader")
+      const modelProviderPriority = document.getElementById("modelProviderPriority")
+      const modelProviderSupportsMultimodal = document.getElementById("modelProviderSupportsMultimodal")
+      const modelProviderEnabled = document.getElementById("modelProviderEnabled")
+      const modelProviderStream = document.getElementById("modelProviderStream")
 
       skuSelect.innerHTML = TIERS.map(([tier, label]) => {
         const counted = Array.from({ length: 10 }, (_, index) => {
@@ -648,6 +740,82 @@
         setMessage(
           freeModelMessage,
           adminView ? `已加载 ${data.models.length} 个免费模型（管理员视图）` : `已加载 ${data.models.length} 个免费模型`,
+          true
+        )
+      }
+
+      function resetModelProviderForm() {
+        modelProviderForm.dataset.editing = ""
+        modelProviderId.disabled = false
+        modelProviderId.value = ""
+        modelProviderName.value = ""
+        modelProviderDescription.value = ""
+        modelProviderBaseUrl.value = ""
+        modelProviderApiKeyHeader.value = "authorization-bearer"
+        modelProviderPriority.value = "0"
+        modelProviderSupportsMultimodal.value = "true"
+        modelProviderEnabled.value = "true"
+        modelProviderStream.value = "true"
+      }
+
+      function fillModelProviderForm(provider) {
+        modelProviderForm.dataset.editing = provider.id
+        modelProviderId.value = provider.id || ""
+        modelProviderId.disabled = true
+        modelProviderName.value = provider.name || ""
+        modelProviderDescription.value = provider.description || ""
+        modelProviderBaseUrl.value = provider.baseUrl || ""
+        modelProviderApiKeyHeader.value = provider.apiKeyHeader || "authorization-bearer"
+        modelProviderPriority.value = String(provider.priority ?? 0)
+        modelProviderSupportsMultimodal.value = provider.supportsMultimodal ? "true" : "false"
+        modelProviderEnabled.value = provider.enabled ? "true" : "false"
+        modelProviderStream.value = provider.stream === false ? "false" : "true"
+      }
+
+      function renderModelProviders(providers, adminView) {
+        if (!providers || !providers.length) {
+          modelProviderList.innerHTML = '<div class="item-meta">当前没有启用的提供商，客户端会退回内置厂商和自定义 API。</div>'
+          return
+        }
+        modelProviderList.innerHTML = providers.map((provider) => `
+          <div class="list-item">
+            <div class="list-item-head">
+              <div>
+                <strong>${escapeHtml(provider.name)}</strong>
+                <div class="item-meta">${escapeHtml(provider.id)} · ${escapeHtml(provider.description || "-")}</div>
+              </div>
+              <span class="badge ${provider.enabled ? "" : "off"}">${provider.enabled ? "启用" : "停用"}</span>
+            </div>
+            <div class="item-meta">
+              URL: ${escapeHtml(provider.baseUrl || "-")} ·
+              鉴权: ${escapeHtml(provider.apiKeyHeader || "authorization-bearer")} ·
+              多模态: ${provider.supportsMultimodal ? "是" : "否"} ·
+              流式: ${provider.stream ? "是" : "否"} ·
+              优先级: ${escapeHtml(provider.priority)}
+            </div>
+            ${adminView ? `
+              <div class="mini-actions">
+                <button type="button" data-edit-provider="${escapeHtml(provider.id)}" class="secondary">编辑</button>
+                <button type="button" data-toggle-provider="${escapeHtml(provider.id)}" class="secondary">${provider.enabled ? "停用" : "启用"}</button>
+                <button type="button" data-delete-provider="${escapeHtml(provider.id)}" class="secondary">删除</button>
+              </div>
+            ` : ''}
+          </div>
+        `).join("")
+      }
+
+      async function loadModelProviders() {
+        const adminView = Boolean(adminSecret.value.trim())
+        const data = await api("list-model-providers", adminView ? { adminView: true } : {}, adminView)
+        if (!data.ok) {
+          setMessage(modelProviderMessage, data.message || "加载提供商失败")
+          modelProviderList.innerHTML = ""
+          return
+        }
+        renderModelProviders(data.providers || [], adminView)
+        setMessage(
+          modelProviderMessage,
+          adminView ? `已加载 ${data.providers.length} 个提供商（管理员视图）` : `已加载 ${data.providers.length} 个提供商`,
           true
         )
       }
@@ -842,8 +1010,84 @@
         }
       })
 
+      document.getElementById("modelProviderSaveBtn").addEventListener("click", async (event) => {
+        event.preventDefault()
+        const secret = adminSecret.value.trim()
+        if (!secret) {
+          setMessage(modelProviderMessage, "请输入管理员密码")
+          return
+        }
+        const data = await api("upsert-model-provider", {
+          providerId: modelProviderId.value.trim(),
+          name: modelProviderName.value.trim(),
+          description: modelProviderDescription.value.trim(),
+          baseUrl: modelProviderBaseUrl.value.trim(),
+          apiKeyHeader: modelProviderApiKeyHeader.value,
+          priority: modelProviderPriority.value,
+          supportsMultimodal: modelProviderSupportsMultimodal.value === "true",
+          enabled: modelProviderEnabled.value === "true",
+          stream: modelProviderStream.value === "true"
+        }, true)
+        if (!data.ok) {
+          setMessage(modelProviderMessage, data.message || "保存失败")
+          return
+        }
+        fillModelProviderForm(data.provider)
+        await loadModelProviders()
+        setMessage(modelProviderMessage, "保存成功", true)
+      })
+
+      document.getElementById("modelProviderClearBtn").addEventListener("click", () => {
+        resetModelProviderForm()
+        setMessage(modelProviderMessage, "")
+      })
+
+      document.getElementById("modelProviderReloadBtn").addEventListener("click", loadModelProviders)
+
+      modelProviderList.addEventListener("click", async (event) => {
+        if (!adminSecret.value.trim()) return
+        const target = event.target && event.target.dataset ? event.target.dataset : {}
+        const editId = target.editProvider || ""
+        const toggleId = target.toggleProvider || ""
+        const deleteId = target.deleteProvider || ""
+        if (editId) {
+          const data = await api("list-model-providers", { adminView: true }, true)
+          const provider = (data.providers || []).find((item) => item.id === editId)
+          if (provider) fillModelProviderForm(provider)
+          return
+        }
+        if (toggleId) {
+          const current = (await api("list-model-providers", { adminView: true }, true)).providers || []
+          const provider = current.find((item) => item.id === toggleId)
+          if (!provider) return
+          const result = await api("set-model-provider-enabled", {
+            providerId: toggleId,
+            enabled: !provider.enabled
+          }, true)
+          if (!result.ok) {
+            setMessage(modelProviderMessage, result.message || "切换失败")
+            return
+          }
+          await loadModelProviders()
+          setMessage(modelProviderMessage, "状态已更新", true)
+          return
+        }
+        if (deleteId) {
+          const result = await api("delete-model-provider", { providerId: deleteId }, true)
+          if (!result.ok) {
+            setMessage(modelProviderMessage, result.message || "删除失败")
+            return
+          }
+          resetModelProviderForm()
+          await loadModelProviders()
+          setMessage(modelProviderMessage, "已删除", true)
+        }
+      })
+
       resetFreeModelForm()
+      resetModelProviderForm()
       loadFreeModels()
+      loadModelProviders()
     </script>
   </body>
 </html>
