@@ -141,7 +141,15 @@ function isFetchNetworkError(err) {
   return Boolean(err && (err.message === "fetch failed" || err.cause))
 }
 
+function isDnsNotFoundError(err) {
+  const cause = err && err.cause ? err.cause : null
+  return Boolean(cause && cause.code === "ENOTFOUND")
+}
+
 function publicErrorMessage(err, fallback) {
+  if (isDnsNotFoundError(err)) {
+    return "Supabase 项目地址无效或项目不存在，请检查 Vercel 环境变量 SUPABASE_URL"
+  }
   if (isFetchNetworkError(err)) {
     return "服务器无法连接数据库，请稍后重试；如果一直失败，请检查 Vercel 与 Supabase 连接"
   }

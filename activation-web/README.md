@@ -4,15 +4,7 @@
 
 ## 当前边界
 
-本目录只作为“吕祖灵签 / 小米手环项目”的激活中心继续维护。
-
-TheWow 已决定迁出本项目，不再与手环应用共用域名、Vercel 项目或 Supabase 数据库。历史上新增的 `the-wow.html`、`api/the-wow.js` 和相关表结构只作为迁移前参考，后续不应继续在本目录开发 TheWow 新功能。
-
-TheWow 新方向见桌面端仓库文档：
-
-```text
-D:\interview\docs\thewow-account-commerce-architecture.md
-```
+本目录只作为“吕祖灵签 / 小米手环项目”的激活中心维护。
 
 ## 部署结构
 
@@ -21,8 +13,6 @@ D:\interview\docs\thewow-account-commerce-architecture.md
 - `api/recover.js`：已激活设备只输入设备码，找回已有激活码。
 - `api/admin/*`：管理员生成卡密、导入卡密、查询、解绑。
 - `api/afdian/webhook.js`：爱发电 Webhook。
-- `the-wow.html`：历史 TheWow 兑换页，待迁移到 TheWow 独立项目后移除。
-- `api/the-wow.js`：历史 TheWow 接口，待迁移到 TheWow 独立项目后移除。
 - 数据库：Supabase Postgres，表结构请先在 Supabase SQL Editor 执行 `schema.sql`。
 
 ## Vercel 环境变量
@@ -45,56 +35,10 @@ SUPABASE_URL=https://xxxx.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=你的 service_role 密钥
 ```
 
-## TheWow 历史授权逻辑（已废弃）
-
-以下内容仅用于理解旧实现和迁移数据，不再作为新开发依据。
-
-旧方案中，TheWow 与手环应用共用同一个 Vercel 项目、同一个域名和同一个 Supabase 项目，但使用独立表：
-
-```text
-wow_cards
-wow_licenses
-wow_license_entitlements
-wow_redemptions
-wow_consumptions
-```
-
-旧销售平台自动发的是“兑换卡密”。这套路径后续要迁移为 TheWow 独立网站里的“礼品码兑换”：
-
-1. 平台自动发货：用户收到礼品码后，登录 TheWow 独立网站，在用户中心兑换到自己的账号。
-2. 人工升级/加次数：管理员在 TheWow 独立后台按账号、用户 ID、邮箱、手机号或历史礼品码追加权益。
-
-新方案中，用户账号是身份，礼品码只兑换权益；用户不再靠保存卡密作为长期身份。
-
-SKU 规则：
-
-```text
-standard_1 到 standard_10，standard_perm
-ultra_1 到 ultra_10，ultra_perm
-max_1 到 max_10，max_perm
-```
-
-权限规则：
-
-```text
-standard < ultra < max
-```
-
-扣次数时会优先扣满足功能要求的最低等级权益：标准功能优先扣 standard，再扣 ultra/max；Ultra 功能只扣 ultra/max；Max 功能只扣 max。永久版对应等级及以下功能不扣次数。
-
-管理员常用动作：
-
-```text
-历史生成平台卡密：the-wow.html -> 管理员生成卡密 -> 复制到平台自动发货卡密池
-历史查询用户权益：the-wow.html -> 查询用户旧卡密
-历史人工升级/加次数：the-wow.html -> 按已有卡密升级/加次数
-```
-
 安全说明：
 
 - 管理员密码只在当前网页输入框中临时使用，网页不会把 `ADMIN_SECRET` 保存到 `localStorage`。
 - `ADMIN_SECRET` 必须只配置在 Vercel 环境变量中，不要写入 Git 仓库。
-- TheWow 新销售口径不应继续引用本目录。应迁移到 TheWow 独立官网、账号系统、礼品码兑换和用户中心。
 
 ## 域名
 
@@ -106,7 +50,7 @@ act.lvzuqian.top
 
 在 Vercel 项目 Domains 里添加 `act.lvzuqian.top`，然后到腾讯云 DNSPod 添加 Vercel 要求的 CNAME。
 
-注意：该域名只继续服务小米手环项目。TheWow 应购买新域名并绑定独立 Vercel 项目。
+注意：该域名只服务吕祖灵签小米手环项目。
 
 手环端二维码地址在：
 

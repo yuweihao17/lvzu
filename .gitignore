@@ -8,3 +8,4 @@
 activation-web/.env
 .vercel
 .vscode/
+supabase/.temp/
