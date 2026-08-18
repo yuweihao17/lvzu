@@ -35,5 +35,26 @@
       document.addEventListener('click',e=>{const v=e.target.closest('[data-view]');if(v){e.preventDefault();navigate(v.dataset.view,v.dataset.product)}const d=e.target.closest('[data-detail]');if(d)navigate('detail',d.dataset.detail);const c=e.target.closest('[data-category]');if(c){state.category=c.dataset.category;renderFilters();renderProducts()}const a=e.target.closest('[data-admin-section]');if(a){$$('[data-admin-section]').forEach(n=>n.classList.toggle('active',n===a));$$('[data-admin-panel]').forEach(n=>n.classList.toggle('active',n.dataset.adminPanel===a.dataset.adminSection))}});$('#activateProduct').addEventListener('change',updateActivationProduct);$('#activateButton').addEventListener('click',()=>runActivation(false));$('#recoverButton').addEventListener('click',()=>runActivation(true));$('#adminLoginButton').addEventListener('click',loginAdmin);$('#searchButton').addEventListener('click',searchAdmin);$('#adminLogout').addEventListener('click',()=>{state.adminSecret='';state.loggedIn=false;$('#adminSecret').value='';$('#adminLogin').hidden=false;$('#adminTools').hidden=true});$('#deviceCode').addEventListener('input',e=>{e.target.value=e.target.value.replace(/[^0-9]/g,'').slice(0,8)});
       async function init(){try{const d=await api('/api/products');state.products=d.products||[];renderFilters();renderProducts();fillProducts()}catch(e){$('#productGrid').innerHTML='<div class="empty">应用目录暂时无法加载，请稍后刷新。</div>'}}init();
     </script>
+    <script>
+      const inventoryPanel = document.querySelector('[data-admin-panel="inventory"]')
+      inventoryPanel.querySelector('.field').insertAdjacentHTML('beforebegin', '<div class="field"><label for="cardCount">批量生成</label><input id="cardCount" type="number" min="1" max="500" value="20" /></div><button id="generateButton" class="button secondary" style="margin-top:12px">生成新卡密</button><div class="field"><label for="importCards">导入已有卡密</label><textarea id="importCards" placeholder="一行一个卡密"></textarea></div><button id="importButton" class="button secondary" style="margin-top:12px">导入卡密</button>')
+      async function updateInventory(action) {
+        const message = document.querySelector('#searchMessage')
+        setMessage(message, '')
+        try {
+          if (action === 'generate') {
+            const data = await api('/api/admin/generate-cards', { method: 'POST', body: JSON.stringify({ productId: document.querySelector('#activateProduct').value, count: document.querySelector('#cardCount').value }), admin: true })
+            setMessage(message, `已生成 ${data.cards.length} 个卡密：${data.cards.join(' ')}`, true)
+          } else {
+            const cards = document.querySelector('#importCards').value.split(/\s+/).filter(Boolean)
+            if (!cards.length) return setMessage(message, '请输入要导入的卡密')
+            const data = await api('/api/admin/import-cards', { method: 'POST', body: JSON.stringify({ productId: document.querySelector('#activateProduct').value, cards }), admin: true })
+            setMessage(message, `成功导入 ${data.created} 个新卡密`, true)
+          }
+        } catch (error) { setMessage(message, error.message || '操作失败') }
+      }
+      document.querySelector('#generateButton').addEventListener('click', () => updateInventory('generate'))
+      document.querySelector('#importButton').addEventListener('click', () => updateInventory('import'))
+    </script>
   </body>
 </html>

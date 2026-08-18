@@ -82,6 +82,14 @@ function activationCode(product, device) {
   return crypto.createHash("sha256").update(`${salt}:${product.id}:${device}`).digest("hex").slice(0, 8).toUpperCase()
 }
 
+function randomCardCode(prefix) {
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+  const bytes = crypto.randomBytes(10)
+  let code = normalizeCard(prefix || "APP")
+  for (let index = 0; index < bytes.length; index += 1) code += alphabet[bytes[index] % alphabet.length]
+  return code
+}
+
 async function query(text, values) {
   if (!pool) throw new Error("DATABASE_URL 未配置")
   return pool.query(text, values)
@@ -141,6 +149,42 @@ async function route(req, res) {
         const keyword = normalizeCard(data.keyword)
         const result = await query("select * from app_cards where card_code=$1 or bound_device_code=$1 or activation_code=$1 order by created_at desc limit 50", [keyword])
         return json(res, 200, { ok: true, results: { cards: result.rows, orders: [], activations: [] } })
+      }
+      if (url.pathname === "/api/admin/import-cards") {
+        if (!adminOk(req, data)) return json(res, 401, { ok: false, message: "管理员密码错误" })
+        const product = productOf(data.productId)
+        const cards = Array.isArray(data.cards) ? data.cards.map(normalizeCard).filter(Boolean) : []
+        if (!cards.length) return json(res, 400, { ok: false, message: "请提供 cards 数组" })
+        let created = 0
+        for (const cardCode of [...new Set(cards)]) {
+          const result = await query("insert into app_cards(product_id,card_code,status) values($1,$2,'new') on conflict(card_code) do nothing", [product.id, cardCode])
+          created += result.rowCount
+        }
+        return json(res, 200, { ok: true, created })
+      }
+      if (url.pathname === "/api/admin/generate-cards") {
+        if (!adminOk(req, data)) return json(res, 401, { ok: false, message: "管理员密码错误" })
+        const product = productOf(data.productId)
+        const count = Math.max(1, Math.min(Number.parseInt(data.count, 10) || 1, 500))
+        const cards = []
+        let attempts = 0
+        while (cards.length < count && attempts < count * 30) {
+          attempts += 1
+          const cardCode = randomCardCode(data.prefix || product.prefix)
+          const result = await query("insert into app_cards(product_id,card_code,status) values($1,$2,'new') on conflict(card_code) do nothing returning card_code", [product.id, cardCode])
+          if (result.rowCount) cards.push(cardCode)
+        }
+        return json(res, 200, { ok: true, cards, text: cards.join("\n") })
+      }
+      if (url.pathname === "/api/admin/reset-card") {
+        if (!adminOk(req, data)) return json(res, 401, { ok: false, message: "管理员密码错误" })
+        const cardCode = normalizeCard(data.cardCode)
+        if (!cardCode) return json(res, 400, { ok: false, message: "请输入卡密" })
+        const card = await query("select id from app_cards where card_code=$1", [cardCode])
+        if (!card.rows.length) return json(res, 404, { ok: false, message: "没有找到这张卡密" })
+        await query("delete from app_activations where card_id=$1", [card.rows[0].id])
+        await query("update app_cards set status='new',bound_device_code='',activation_code='',activated_at=null,updated_at=now() where id=$1", [card.rows[0].id])
+        return json(res, 200, { ok: true, updated: 1 })
       }
     } catch (error) {
       return json(res, 500, { ok: false, message: error.message || "服务器异常" })
