@@ -44,3 +44,7 @@ create index if not exists idx_lvzu_orders_card on public.lvzu_afdian_orders(car
 create index if not exists idx_lvzu_orders_device on public.lvzu_afdian_orders(bound_device_code);
 create index if not exists idx_lvzu_activations_card on public.lvzu_activations(card_code);
 create index if not exists idx_lvzu_activations_device on public.lvzu_activations(device_code);
+
+alter table public.lvzu_cards enable row level security;
+alter table public.lvzu_afdian_orders enable row level security;
+alter table public.lvzu_activations enable row level security;
