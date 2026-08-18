@@ -9,7 +9,19 @@
 3. 在新服务器创建独立的 `/opt/xiaomi-app-store` 目录和 `.env`，其中 `ACTIVATION_SALT` 必须与已发布的手环应用一致，`ADMIN_SECRET` 必须与当前管理员密钥兼容。
 4. 两个源项目都跑完导入，保存每次输出的表行数报告。报告与源表行数不一致时，不切换 DNS。
 
-## 导入命令
+## 先运行预检
+
+`IMPORT_DRY_RUN=1` 只读取源库并报告每张表的行数，不会向目标库写入任何数据。两个项目的预检报告都应保存下来，并与 Supabase Dashboard 中的表行数核对。
+
+```bash
+IMPORT_DRY_RUN=1 \
+SOURCE_PROJECT=trmfqisrqbpbsksldkwc \
+SOURCE_DATABASE_URL='postgresql://...' \
+TARGET_DATABASE_URL='postgresql://...' \
+node scripts/import-supabase.js
+```
+
+## 正式导入命令
 
 在新服务已启动、目标数据库可连接后，对每个源项目单独运行：
 
@@ -28,6 +40,8 @@ node scripts/import-supabase.js
 - 把 `profiles` 映射到统一 `app_users`，保留源项目与源用户 ID。
 - 把 `lvzu_cards`、`lvzu_afdian_orders`、`lvzu_activations` 映射到统一产品、订单、卡密和激活表。
 - 将 TheWow 的 `orders` 留在隐藏的 `thewow_legacy` 产品下，其他业务表保留在 `legacy_rows`，避免错误地把不同业务的权益、礼品码或用量记录当作手环卡密。
+- 在单个目标数据库事务中完成归档与映射；任何一条源记录无法导入时，本次导入会整体回滚。
+- 遇到目标库中未定义的产品 ID 时，只归档原始数据，不会擅自将卡密或激活记录归入吕祖灵签。
 
 ## 不能自动迁移的内容
 

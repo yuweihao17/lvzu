@@ -5,6 +5,7 @@ const sourceUrl = process.env.SOURCE_DATABASE_URL
 const targetUrl = process.env.TARGET_DATABASE_URL || process.env.DATABASE_URL
 const sourceProject = process.env.SOURCE_PROJECT || "unknown-supabase-project"
 const sourceSchema = process.env.SOURCE_SCHEMA || "public"
+const dryRun = process.env.IMPORT_DRY_RUN === "1"
 
 if (!sourceUrl || !targetUrl) {
   console.error("SOURCE_DATABASE_URL and TARGET_DATABASE_URL are required")
@@ -13,6 +14,7 @@ if (!sourceUrl || !targetUrl) {
 
 const source = new Client({ connectionString: sourceUrl })
 const target = new Client({ connectionString: targetUrl })
+const knownProducts = new Set()
 const quote = (value) => `"${String(value).replace(/"/g, '""')}"`
 const rowId = (row) => String(row.id || row.code || row.order_no || crypto.createHash("sha256").update(JSON.stringify(row)).digest("hex"))
 const normalCard = (value) => String(value || "").trim().toUpperCase().replace(/\s+/g, "")
@@ -34,9 +36,19 @@ async function preserve(table, row) {
 }
 
 async function ensureLegacyProduct() {
-  await target.query(
-    "insert into app_products(id,name,category,description,status,sort_order) values('thewow_legacy','TheWow 历史订单','历史数据','为保留原业务订单而建立的隐藏产品记录。','hidden',999) on conflict(id) do nothing"
-  )
+  if (!dryRun) {
+    await target.query(
+      "insert into app_products(id,name,category,description,status,sort_order) values('thewow_legacy','TheWow 历史订单','历史数据','为保留原业务订单而建立的隐藏产品记录。','hidden',999) on conflict(id) do nothing"
+    )
+  }
+  knownProducts.add("thewow_legacy")
+  const products = await target.query("select id from app_products")
+  for (const product of products.rows) knownProducts.add(product.id)
+}
+
+function resolveProductId(value) {
+  const candidate = String(value || "lvzu_lingqian")
+  return knownProducts.has(candidate) ? candidate : null
 }
 
 async function mapProfile(row) {
@@ -49,37 +61,43 @@ async function mapProfile(row) {
 
 async function mapCard(row) {
   const cardCode = normalCard(row.card_code || row.code)
-  if (!cardCode) return
-  const product = row.product_id || "lvzu_lingqian"
+  if (!cardCode) return false
+  const product = resolveProductId(row.product_id)
+  if (!product) return false
   const status = ["new", "used", "disabled"].includes(row.status) ? row.status : (row.bound_device_code ? "used" : "new")
   await target.query(
     "insert into app_cards(product_id,card_code,status,bound_device_code,activation_code,activated_at,created_at,updated_at) values($1,$2,$3,$4,$5,$6,coalesce($7,now()),coalesce($8,now())) on conflict(card_code) do nothing",
     [product, cardCode, status, row.bound_device_code || "", row.activation_code || "", asDate(row.activated_at), asDate(row.created_at), asDate(row.updated_at)]
   )
+  return true
 }
 
 async function mapAfdianOrder(row) {
-  const product = row.product_id || "lvzu_lingqian"
+  const product = resolveProductId(row.product_id)
+  if (!product) return false
   const cardCode = normalCard(row.card_code || row.redeem_code || row.order_no)
   if (cardCode) await mapCard({ ...row, product_id: product, card_code: cardCode })
   const orderNo = String(row.order_no || row.out_trade_no || "")
-  if (!orderNo) return
+  if (!orderNo) return false
   await target.query(
     "insert into app_orders(product_id,provider,external_order_no,card_code,amount_cents,currency,status,metadata,created_at,updated_at) values($1,'afdian',$2,$3,$4,'CNY',$5,$6::jsonb,coalesce($7,now()),coalesce($8,now())) on conflict(provider,external_order_no) do nothing",
     [product, orderNo, cardCode || null, Number.isFinite(Number(row.total_amount)) ? Math.round(Number(row.total_amount) * 100) : null, row.status || "pending", JSON.stringify(row), asDate(row.created_at), asDate(row.updated_at)]
   )
+  return true
 }
 
 async function mapActivation(row) {
-  const product = row.product_id || "lvzu_lingqian"
+  const product = resolveProductId(row.product_id)
+  if (!product) return false
   const device = String(row.device_code || row.bound_device_code || "")
   const cardCode = normalCard(row.card_code)
-  if (!device || !cardCode || !row.activation_code) return
+  if (!device || !cardCode || !row.activation_code) return false
   const card = await target.query("select id from app_cards where card_code=$1", [cardCode])
   await target.query(
     "insert into app_activations(product_id,card_id,card_code,device_code,activation_code,created_at) values($1,$2,$3,$4,$5,coalesce($6,now())) on conflict(product_id,device_code) do nothing",
     [product, card.rows[0]?.id || null, cardCode, device, row.activation_code, asDate(row.created_at)]
   )
+  return true
 }
 
 async function mapTheWowOrder(row) {
@@ -93,29 +111,42 @@ async function mapTheWowOrder(row) {
     "insert into app_orders(product_id,user_id,provider,external_order_no,amount_cents,currency,status,metadata,created_at,updated_at) values('thewow_legacy',$1,$2,$3,$4,$5,$6,$7::jsonb,coalesce($8,now()),coalesce($9,now())) on conflict(provider,external_order_no) do nothing",
     [userId, row.provider || "thewow", row.external_order_id || row.id || null, row.amount_cents || null, row.currency || "CNY", row.status || "pending", JSON.stringify(row), asDate(row.created_at), asDate(row.updated_at)]
   )
+  return true
 }
 
 async function main() {
   await source.connect()
   await target.connect()
-  await ensureLegacyProduct()
-  const tables = await source.query("select table_name from information_schema.tables where table_schema=$1 and table_type='BASE TABLE' order by table_name", [sourceSchema])
-  const summary = {}
-  for (const { table_name: table } of tables.rows) {
-    const rows = await source.query(`select to_jsonb(t) as row from ${quote(sourceSchema)}.${quote(table)} t`)
-    summary[table] = { read: rows.rowCount, preserved: 0, mapped: 0 }
-    for (const result of rows.rows) {
-      const row = result.row
-      await preserve(table, row)
-      summary[table].preserved += 1
-      if (table === "profiles") { await mapProfile(row); summary[table].mapped += 1 }
-      if (table === "lvzu_cards") { await mapCard(row); summary[table].mapped += 1 }
-      if (table === "lvzu_afdian_orders") { await mapAfdianOrder(row); summary[table].mapped += 1 }
-      if (table === "lvzu_activations") { await mapActivation(row); summary[table].mapped += 1 }
-      if (table === "orders") { await mapTheWowOrder(row); summary[table].mapped += 1 }
+  try {
+    if (!dryRun) await target.query("begin")
+    await ensureLegacyProduct()
+    const tables = await source.query("select table_name from information_schema.tables where table_schema=$1 and table_type='BASE TABLE' order by table_name", [sourceSchema])
+    const summary = {}
+    for (const { table_name: table } of tables.rows) {
+      if (dryRun) {
+        const count = await source.query(`select count(*)::int as count from ${quote(sourceSchema)}.${quote(table)}`)
+        summary[table] = { read: count.rows[0].count, preserved: 0, mapped: 0 }
+        continue
+      }
+      const rows = await source.query(`select to_jsonb(t) as row from ${quote(sourceSchema)}.${quote(table)} t`)
+      summary[table] = { read: rows.rowCount, preserved: 0, mapped: 0 }
+      for (const result of rows.rows) {
+        const row = result.row
+        await preserve(table, row)
+        summary[table].preserved += 1
+        if (table === "profiles") { await mapProfile(row); summary[table].mapped += 1 }
+        if (table === "lvzu_cards" && await mapCard(row)) summary[table].mapped += 1
+        if (table === "lvzu_afdian_orders" && await mapAfdianOrder(row)) summary[table].mapped += 1
+        if (table === "lvzu_activations" && await mapActivation(row)) summary[table].mapped += 1
+        if (table === "orders" && await mapTheWowOrder(row)) summary[table].mapped += 1
+      }
     }
+    if (!dryRun) await target.query("commit")
+    console.log(JSON.stringify({ sourceProject, dryRun, tables: summary }, null, 2))
+  } catch (error) {
+    if (!dryRun) await target.query("rollback").catch(() => {})
+    throw error
   }
-  console.log(JSON.stringify({ sourceProject, tables: summary }, null, 2))
 }
 
 main().catch((error) => { console.error(error); process.exitCode = 1 }).finally(async () => { await source.end().catch(() => {}); await target.end().catch(() => {}) })

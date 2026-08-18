@@ -78,7 +78,8 @@ function productOf(value) {
 }
 
 function activationCode(product, device) {
-  const salt = process.env.ACTIVATION_SALT || "xiaomi-app-store-change-before-release"
+  const salt = process.env.ACTIVATION_SALT || (process.env.NODE_ENV === "production" ? "" : "xiaomi-app-store-local-development")
+  if (!salt) throw new Error("ACTIVATION_SALT 未配置")
   return crypto.createHash("sha256").update(`${salt}:${product.id}:${device}`).digest("hex").slice(0, 8).toUpperCase()
 }
 
@@ -137,7 +138,15 @@ async function route(req, res) {
   if (req.method === "OPTIONS") return json(res, 204, {})
   const url = new URL(req.url, `http://${req.headers.host || "localhost"}`)
   if (req.method === "GET" && url.pathname === "/api/products") return json(res, 200, { ok: true, products: productList() })
-  if (req.method === "GET" && url.pathname === "/api/health") return json(res, 200, { ok: true, service: "xiaomi-app-store", databaseConfigured: Boolean(pool), products: productList().length })
+  if (req.method === "GET" && url.pathname === "/api/health") {
+    if (!pool) return json(res, 503, { ok: false, service: "xiaomi-app-store", databaseConfigured: false, products: productList().length, message: "DATABASE_URL 未配置" })
+    try {
+      await query("select 1")
+      return json(res, 200, { ok: true, service: "xiaomi-app-store", databaseConfigured: true, products: productList().length })
+    } catch (error) {
+      return json(res, 503, { ok: false, service: "xiaomi-app-store", databaseConfigured: true, products: productList().length, message: "数据库暂时无法连接" })
+    }
+  }
   if (req.method === "POST") {
     const data = await body(req)
     try {
@@ -191,10 +200,9 @@ async function route(req, res) {
     }
   }
   if (req.method === "GET") {
-    const file = url.pathname === "/" ? path.join(ROOT, "index.html") : path.join(ROOT, url.pathname.replace(/^\//, ""))
-    if (file.startsWith(ROOT) && fs.existsSync(file) && fs.statSync(file).isFile()) {
-      const type = file.endsWith(".html") ? "text/html; charset=utf-8" : file.endsWith(".js") ? "text/javascript; charset=utf-8" : "application/octet-stream"
-      res.writeHead(200, { "content-type": type, "cache-control": file.endsWith(".html") ? "no-cache" : "public, max-age=86400, immutable" })
+    const file = (url.pathname === "/" || url.pathname === "/index.html") ? path.join(ROOT, "index.html") : null
+    if (file && fs.existsSync(file) && fs.statSync(file).isFile()) {
+      res.writeHead(200, { "content-type": "text/html; charset=utf-8", "cache-control": "no-cache" })
       return fs.createReadStream(file).pipe(res)
     }
   }
