@@ -1,6 +1,7 @@
 /.nyc_output
 /coverage
 /node_modules
+/activation-web/node_modules
 /sign
 /dist
 /build
