@@ -12,8 +12,14 @@ const dynamicIds = new Set(["productForm", "planForm", "cardForm", "modalMessage
 const missing = [...new Set(selectors.filter(id => !ids.has(id) && !dynamicIds.has(id)))]
 
 assert.deepStrictEqual(missing, [], `app.js references missing HTML ids: ${missing.join(", ")}`)
-assert.match(html, /<link rel="stylesheet" href="\/app\.css\?v=[^"]+">/)
-assert.match(html, /<script src="\/app\.js\?v=[^"]+" defer><\/script>/)
+const cssVersion = html.match(/<link rel="stylesheet" href="\/app\.css\?v=([^"]+)">/)
+const scriptVersion = html.match(/<script src="\/app\.js\?v=([^"]+)" defer><\/script>/)
+assert.ok(cssVersion, "app.css must use a release version")
+assert.ok(scriptVersion, "app.js must use a release version")
+assert.strictEqual(cssVersion[1], scriptVersion[1], "frontend release versions must match")
+assert.match(script, /const targetHash = route === "detail" \? `#detail\/\$\{encodeURIComponent\(productId\)\}` : `#\$\{route\}`/)
+assert.match(script, /\.site-nav"\)\.classList\.remove\("open"\)/)
+assert.match(script, /#mobileMenu"\)\.setAttribute\("aria-expanded", "false"\)/)
 assert.match(styles, /\.icon-button\.mobile-menu\s*\{\s*display\s*:\s*none\s*\}/)
 assert.match(styles, /@media\s*\(max-width\s*:\s*720px\)[^{]*\{[^}]*\.icon-button\.mobile-menu\s*\{\s*display\s*:\s*grid\s*\}/)
 
