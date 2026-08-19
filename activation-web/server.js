@@ -303,7 +303,8 @@ function staticFile(res, url) {
   const file = path.resolve(ROOT, `.${requested}`)
   if (!file.startsWith(`${ROOT}${path.sep}`) || !fs.existsSync(file) || !fs.statSync(file).isFile()) return false
   const extension = path.extname(file)
-  res.writeHead(200, { "content-type": MIME[extension] || "application/octet-stream", "cache-control": extension === ".html" ? "no-cache" : "public, max-age=3600", "x-content-type-options": "nosniff" })
+  const cacheControl = [".html", ".js", ".css"].includes(extension) ? "no-cache" : "public, max-age=86400"
+  res.writeHead(200, { "content-type": MIME[extension] || "application/octet-stream", "cache-control": cacheControl, "x-content-type-options": "nosniff" })
   fs.createReadStream(file).pipe(res)
   return true
 }
