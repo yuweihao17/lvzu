@@ -2,6 +2,7 @@ const http = require("http")
 const fs = require("fs")
 const path = require("path")
 const crypto = require("crypto")
+const { DEFAULT_AFDIAN_USER_ID, makeActivationCode, normalizeDevice } = require("./lib/activation-code")
 
 const PORT = Number(process.env.PORT || 3100)
 const ROOT = __dirname
@@ -69,18 +70,18 @@ function normalizeCard(value) {
   return String(value || "").trim().toUpperCase().replace(/\s+/g, "")
 }
 
-function normalizeDevice(value) {
-  return String(value || "").replace(/[^0-9]/g, "").slice(0, 8)
-}
-
 function productOf(value) {
   return PRODUCTS[String(value || "lvzu_lingqian")] || PRODUCTS.lvzu_lingqian
 }
 
 function activationCode(product, device) {
   const salt = process.env.ACTIVATION_SALT || (process.env.NODE_ENV === "production" ? "" : "xiaomi-app-store-local-development")
-  if (!salt) throw new Error("ACTIVATION_SALT 未配置")
-  return crypto.createHash("sha256").update(`${salt}:${product.id}:${device}`).digest("hex").slice(0, 8).toUpperCase()
+  return makeActivationCode({
+    salt,
+    productId: product.id,
+    deviceCode: device,
+    userId: process.env.AFDIAN_USER_ID || DEFAULT_AFDIAN_USER_ID
+  })
 }
 
 function randomCardCode(prefix) {

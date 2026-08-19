@@ -34,6 +34,22 @@ node scripts/import-supabase.js
 
 第二个项目替换为 `pvojzpcigrylcqsdhrwj` 与它自己的直连串。
 
+如果数据库密码不可查看，可以使用 Supabase Personal Access Token 通过管理 API 创建只读快照，再从快照导入：
+
+```bash
+SUPABASE_ACCESS_TOKEN='sbp_...' \
+SOURCE_PROJECT=trmfqisrqbpbsksldkwc \
+SOURCE_EXPORT_FILE='/secure-temp/trmfqisrqbpbsksldkwc.json' \
+node scripts/export-supabase-api.js
+
+SOURCE_PROJECT=trmfqisrqbpbsksldkwc \
+SOURCE_EXPORT_FILE='/secure-temp/trmfqisrqbpbsksldkwc.json' \
+TARGET_DATABASE_URL='postgresql://...' \
+node scripts/import-supabase.js
+```
+
+快照包含源业务表的完整数据，只能保存在受控临时目录；导入和核验完成后必须删除，不得提交到 Git。
+
 导入器会：
 
 - 将每个 `public` 表的每一行写入 `legacy_rows`；重复运行按来源表和源行 ID 覆盖，不会重复增加备份记录。

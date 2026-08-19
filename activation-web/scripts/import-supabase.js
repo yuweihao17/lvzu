@@ -1,18 +1,20 @@
 const crypto = require("crypto")
+const fs = require("fs")
 const { Client } = require("pg")
 
 const sourceUrl = process.env.SOURCE_DATABASE_URL
+const sourceExportFile = process.env.SOURCE_EXPORT_FILE
 const targetUrl = process.env.TARGET_DATABASE_URL || process.env.DATABASE_URL
 const sourceProject = process.env.SOURCE_PROJECT || "unknown-supabase-project"
 const sourceSchema = process.env.SOURCE_SCHEMA || "public"
 const dryRun = process.env.IMPORT_DRY_RUN === "1"
 
-if (!sourceUrl || !targetUrl) {
-  console.error("SOURCE_DATABASE_URL and TARGET_DATABASE_URL are required")
+if ((!sourceUrl && !sourceExportFile) || !targetUrl) {
+  console.error("SOURCE_DATABASE_URL or SOURCE_EXPORT_FILE, plus TARGET_DATABASE_URL, are required")
   process.exit(1)
 }
 
-const source = new Client({ connectionString: sourceUrl })
+const source = sourceUrl ? new Client({ connectionString: sourceUrl }) : null
 const target = new Client({ connectionString: targetUrl })
 const knownProducts = new Set()
 const quote = (value) => `"${String(value).replace(/"/g, '""')}"`
@@ -115,23 +117,26 @@ async function mapTheWowOrder(row) {
 }
 
 async function main() {
-  await source.connect()
+  if (source) await source.connect()
   await target.connect()
   try {
     if (!dryRun) await target.query("begin")
     await ensureLegacyProduct()
-    const tables = await source.query("select table_name from information_schema.tables where table_schema=$1 and table_type='BASE TABLE' order by table_name", [sourceSchema])
+    const exported = sourceExportFile ? JSON.parse(fs.readFileSync(sourceExportFile, "utf8")) : null
+    if (exported && exported.sourceProject !== sourceProject) throw new Error("SOURCE_PROJECT does not match export file")
+    const tableNames = exported
+      ? Object.keys(exported.tables).sort()
+      : (await source.query("select table_name from information_schema.tables where table_schema=$1 and table_type='BASE TABLE' order by table_name", [sourceSchema])).rows.map((row) => row.table_name)
     const summary = {}
-    for (const { table_name: table } of tables.rows) {
+    for (const table of tableNames) {
       if (dryRun) {
-        const count = await source.query(`select count(*)::int as count from ${quote(sourceSchema)}.${quote(table)}`)
-        summary[table] = { read: count.rows[0].count, preserved: 0, mapped: 0 }
+        const count = exported ? exported.tables[table].length : (await source.query(`select count(*)::int as count from ${quote(sourceSchema)}.${quote(table)}`)).rows[0].count
+        summary[table] = { read: count, preserved: 0, mapped: 0 }
         continue
       }
-      const rows = await source.query(`select to_jsonb(t) as row from ${quote(sourceSchema)}.${quote(table)} t`)
-      summary[table] = { read: rows.rowCount, preserved: 0, mapped: 0 }
-      for (const result of rows.rows) {
-        const row = result.row
+      const rows = exported ? exported.tables[table] : (await source.query(`select to_jsonb(t) as row from ${quote(sourceSchema)}.${quote(table)} t`)).rows.map((result) => result.row)
+      summary[table] = { read: rows.length, preserved: 0, mapped: 0 }
+      for (const row of rows) {
         await preserve(table, row)
         summary[table].preserved += 1
         if (table === "profiles") { await mapProfile(row); summary[table].mapped += 1 }
@@ -149,4 +154,4 @@ async function main() {
   }
 }
 
-main().catch((error) => { console.error(error); process.exitCode = 1 }).finally(async () => { await source.end().catch(() => {}); await target.end().catch(() => {}) })
+main().catch((error) => { console.error(error); process.exitCode = 1 }).finally(async () => { if (source) await source.end().catch(() => {}); await target.end().catch(() => {}) })

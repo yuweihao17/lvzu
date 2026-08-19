@@ -22,6 +22,7 @@ npm start
 | `DATABASE_URL` | Node 服务连接 PostgreSQL 的地址 |
 | `ADMIN_SECRET` | 管理中心验证密钥 |
 | `ACTIVATION_SALT` | 激活码计算盐，必须与已发布的手环应用保持不变 |
+| `AFDIAN_USER_ID` | 参与吕祖灵签激活码计算，必须与已发布手环应用保持一致 |
 | `PORT` | 服务端口，默认 `3100` |
 
 生产环境缺少 `ACTIVATION_SALT` 时，激活请求会拒绝执行，避免意外生成与旧版手环不兼容的激活码。

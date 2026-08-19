@@ -23,6 +23,7 @@ services:
       DATABASE_URL: postgresql://xiaomi_app_store:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@database:5432/xiaomi_app_store
       ADMIN_SECRET: ${ADMIN_SECRET:?set ADMIN_SECRET in .env}
       ACTIVATION_SALT: ${ACTIVATION_SALT:?set ACTIVATION_SALT in .env}
+      AFDIAN_USER_ID: ${AFDIAN_USER_ID:-1b9cd46856a311f1b71e52540025c377}
     depends_on:
       database:
         condition: service_healthy
