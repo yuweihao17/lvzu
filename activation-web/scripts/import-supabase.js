@@ -18,6 +18,8 @@ const source = sourceUrl ? new Client({ connectionString: sourceUrl }) : null
 const target = new Client({ connectionString: targetUrl })
 const knownProducts = new Set()
 const quote = (value) => `"${String(value).replace(/"/g, '""')}"`
+const importPriority = { profiles: 10, lvzu_cards: 20, lvzu_afdian_orders: 30, orders: 40, lvzu_activations: 50 }
+const orderTables = (tables) => [...tables].sort((left, right) => (importPriority[left] || 100) - (importPriority[right] || 100) || left.localeCompare(right))
 const rowId = (row) => String(row.id || row.code || row.order_no || crypto.createHash("sha256").update(JSON.stringify(row)).digest("hex"))
 const normalCard = (value) => String(value || "").trim().toUpperCase().replace(/\s+/g, "")
 const asDate = (value) => {
@@ -125,8 +127,8 @@ async function main() {
     const exported = sourceExportFile ? JSON.parse(fs.readFileSync(sourceExportFile, "utf8")) : null
     if (exported && exported.sourceProject !== sourceProject) throw new Error("SOURCE_PROJECT does not match export file")
     const tableNames = exported
-      ? Object.keys(exported.tables).sort()
-      : (await source.query("select table_name from information_schema.tables where table_schema=$1 and table_type='BASE TABLE' order by table_name", [sourceSchema])).rows.map((row) => row.table_name)
+      ? orderTables(Object.keys(exported.tables))
+      : orderTables((await source.query("select table_name from information_schema.tables where table_schema=$1 and table_type='BASE TABLE'", [sourceSchema])).rows.map((row) => row.table_name))
     const summary = {}
     for (const table of tableNames) {
       if (dryRun) {
