@@ -11,7 +11,7 @@ const dynamicIds = new Set(["productForm", "planForm", "cardForm", "modalMessage
 const missing = [...new Set(selectors.filter(id => !ids.has(id) && !dynamicIds.has(id)))]
 
 assert.deepStrictEqual(missing, [], `app.js references missing HTML ids: ${missing.join(", ")}`)
-assert.match(html, /<link rel="stylesheet" href="\/app\.css">/)
-assert.match(html, /<script src="\/app\.js" defer><\/script>/)
+assert.match(html, /<link rel="stylesheet" href="\/app\.css\?v=[^"]+">/)
+assert.match(html, /<script src="\/app\.js\?v=[^"]+" defer><\/script>/)
 
 console.log("frontend contract tests passed")
