@@ -15,6 +15,32 @@ create table if not exists app_products (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists product_plans (
+  id uuid primary key default gen_random_uuid(),
+  product_id text not null references app_products(id) on delete cascade,
+  name text not null,
+  prefix text not null default 'APP',
+  duration_days integer not null default 0 check (duration_days >= 0),
+  max_devices integer not null default 1 check (max_devices > 0),
+  max_activations integer not null default 1 check (max_activations > 0),
+  activation_algorithm_version integer not null default 1,
+  status text not null default 'active' check (status in ('active','disabled')),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (product_id, name)
+);
+
+create table if not exists card_batches (
+  id uuid primary key default gen_random_uuid(),
+  plan_id uuid not null references product_plans(id),
+  batch_name text not null,
+  quantity integer not null default 0 check (quantity >= 0),
+  source text not null default 'generated',
+  expires_at timestamptz,
+  notes text not null default '',
+  created_at timestamptz not null default now()
+);
+
 create table if not exists app_users (
   id uuid primary key default gen_random_uuid(),
   source_project text not null default 'local',
@@ -46,14 +72,23 @@ create table if not exists app_orders (
 create table if not exists app_cards (
   id bigserial primary key,
   product_id text not null references app_products(id),
+  plan_id uuid references product_plans(id),
+  batch_id uuid references card_batches(id),
   card_code text not null unique,
-  status text not null default 'new' check (status in ('new','used','disabled')),
+  status text not null default 'new' check (status in ('new','reserved','used','expired','revoked','disabled')),
   bound_device_code text not null default '',
   activation_code text not null default '',
   activated_at timestamptz,
+  expires_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table app_cards add column if not exists plan_id uuid references product_plans(id);
+alter table app_cards add column if not exists batch_id uuid references card_batches(id);
+alter table app_cards add column if not exists expires_at timestamptz;
+alter table app_cards drop constraint if exists app_cards_status_check;
+alter table app_cards add constraint app_cards_status_check check (status in ('new','reserved','used','expired','revoked','disabled'));
 
 create table if not exists app_activations (
   id bigserial primary key,
@@ -76,10 +111,45 @@ create table if not exists legacy_rows (
   unique (source_project, source_table, source_row_id)
 );
 
+create table if not exists admin_credentials (
+  id smallint primary key default 1 check (id = 1),
+  secret_hash text not null,
+  secret_version integer not null default 1,
+  rotated_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists admin_sessions (
+  id uuid primary key default gen_random_uuid(),
+  token_hash text not null unique,
+  secret_version integer not null,
+  ip_address text not null default '',
+  user_agent text not null default '',
+  expires_at timestamptz not null,
+  last_seen_at timestamptz not null default now(),
+  created_at timestamptz not null default now()
+);
+
+create table if not exists admin_audit_logs (
+  id bigserial primary key,
+  action text not null,
+  target_type text not null default '',
+  target_id text not null default '',
+  ip_address text not null default '',
+  metadata jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now()
+);
+
 create index if not exists idx_app_cards_product_status on app_cards(product_id, status);
+create index if not exists idx_app_cards_plan_status on app_cards(plan_id, status);
+create index if not exists idx_app_cards_batch on app_cards(batch_id);
 create index if not exists idx_app_cards_device on app_cards(bound_device_code);
 create index if not exists idx_app_activations_device on app_activations(device_code);
 create index if not exists idx_app_orders_user on app_orders(user_id);
+create index if not exists idx_product_plans_product on product_plans(product_id);
+create index if not exists idx_card_batches_plan on card_batches(plan_id);
+create index if not exists idx_admin_sessions_expiry on admin_sessions(expires_at);
+create index if not exists idx_admin_audit_created on admin_audit_logs(created_at desc);
 
 insert into app_products (id, name, category, description, purchase_url, price_label, prefix, accent, status, sort_order)
 values
@@ -87,3 +157,13 @@ values
   ('focus_timer', '专注计时器', '效率工具', '为小米手环设计的轻量番茄钟，抬腕即可开始、暂停和查看进度。', '#', '即将上线', 'FT', 'blue', 'coming_soon', 20),
   ('habit_ring', '习惯环', '健康管理', '用清晰的环形进度追踪每日习惯，让坚持变成一眼可见的反馈。', '#', '即将上线', 'HR', 'mint', 'coming_soon', 30)
 on conflict (id) do update set name=excluded.name, category=excluded.category, description=excluded.description, purchase_url=excluded.purchase_url, price_label=excluded.price_label, prefix=excluded.prefix, accent=excluded.accent, status=excluded.status, sort_order=excluded.sort_order, updated_at=now();
+
+insert into product_plans (product_id, name, prefix, duration_days, max_devices, max_activations, status)
+select id, '永久版', prefix, 0, 1, 1, 'active'
+from app_products
+on conflict (product_id, name) do update set prefix=excluded.prefix, updated_at=now();
+
+update app_cards c
+set plan_id = p.id
+from product_plans p
+where c.plan_id is null and p.product_id = c.product_id and p.name = '永久版';
