@@ -1,22 +1,9 @@
 {
   "version": 2,
-  "headers": [
+  "rewrites": [
     {
-      "source": "/api/(.*)",
-      "headers": [
-        {
-          "key": "Access-Control-Allow-Origin",
-          "value": "*"
-        },
-        {
-          "key": "Access-Control-Allow-Methods",
-          "value": "GET,POST,OPTIONS"
-        },
-        {
-          "key": "Access-Control-Allow-Headers",
-          "value": "content-type,x-admin-secret"
-        }
-      ]
+      "source": "/:path*",
+      "destination": "http://123.60.20.133:3100/:path*"
     }
   ]
 }
