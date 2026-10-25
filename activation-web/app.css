@@ -7,3 +7,420 @@
 .detail-copy>p{color:var(--muted);font-size:17px}
 .icon-button.mobile-menu{display:none}
 @media(max-width:720px){.icon-button.mobile-menu{display:grid}}
+
+/* ===== 卡密中心高级响应式重构 (桌面端 + 移动端) ===== */
+.desktop-only { display: block; }
+.mobile-only { display: none; }
+
+/* 统计药丸卡片网格 */
+.card-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.stat-pill {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 14px 16px;
+  cursor: pointer;
+  transition: all .18s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.stat-pill:hover {
+  border-color: var(--blue);
+  transform: translateY(-1px);
+}
+.stat-pill.active {
+  border-color: var(--blue);
+  background: var(--blue-soft);
+}
+.stat-label {
+  font-size: 13px;
+  color: var(--muted);
+  font-weight: 600;
+}
+.stat-pill strong {
+  font-size: 26px;
+  line-height: 1.1;
+  font-family: ui-monospace, monospace;
+  color: var(--ink);
+}
+.stat-pill.pill-new.active strong { color: var(--mint); }
+.stat-pill.pill-used.active strong { color: var(--muted); }
+.stat-pill.pill-disabled.active strong { color: var(--danger); }
+
+/* 卡密筛选栏 */
+.card-filter-bar {
+  display: grid;
+  grid-template-columns: 180px 150px 1fr auto;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 16px;
+}
+.search-input-wrap {
+  width: 100%;
+}
+.card-filter-bar input[type="search"] {
+  width: 100%;
+  height: 44px;
+}
+.filter-actions {
+  display: flex;
+  gap: 8px;
+}
+.search-btn {
+  height: 44px;
+  padding: 0 18px;
+}
+
+/* 批量操作工具条 */
+.batch-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #f0f4f9;
+  border: 1px solid #d0dce8;
+  border-radius: var(--r);
+  padding: 10px 16px;
+  margin-bottom: 14px;
+  animation: page-in .15s ease-out;
+}
+.batch-info {
+  font-size: 14px;
+  color: var(--ink);
+}
+.batch-info strong {
+  color: var(--blue);
+  font-size: 16px;
+}
+.batch-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.btn-sm {
+  min-height: 34px;
+  padding: 0 12px;
+  font-size: 13px;
+}
+
+/* 桌面端表格细节美化 */
+.col-check {
+  width: 44px;
+  text-align: center;
+}
+.card-checkbox {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: var(--blue);
+}
+.card-code-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.card-code-cell .code {
+  font-size: 14px;
+  letter-spacing: .02em;
+}
+.icon-btn-sm {
+  width: 28px;
+  height: 28px;
+  display: inline-grid;
+  place-items: center;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 0;
+}
+.icon-btn-sm:hover {
+  background: #e9edf2;
+  color: var(--blue);
+}
+.icon-btn-sm svg {
+  width: 15px;
+  height: 15px;
+}
+.product-badge {
+  display: inline-block;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.plan-label {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+.device-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.muted-text {
+  color: var(--muted);
+}
+.text-sm {
+  font-size: 13px;
+}
+.row-actions {
+  display: inline-flex;
+  gap: 10px;
+  align-items: center;
+}
+.btn-text-action {
+  border: 0;
+  background: transparent;
+  padding: 2px 4px;
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--blue);
+  cursor: pointer;
+}
+.btn-text-action:hover {
+  text-decoration: underline;
+}
+.btn-text-action.text-danger { color: var(--danger); }
+.btn-text-action.text-warning { color: var(--saffron); }
+.btn-text-action.text-success { color: var(--mint); }
+
+/* 状态徽章 */
+.card-status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 650;
+}
+.badge-new { background: var(--mint-soft); color: var(--mint); }
+.badge-used { background: #edf0f3; color: var(--muted); }
+.badge-disabled { background: var(--danger-soft); color: var(--danger); }
+.badge-revoked { background: #fff8eb; color: var(--saffron); }
+.badge-expired { background: #f4f5f7; color: var(--muted); }
+.badge-default { background: #edf0f3; color: var(--muted); }
+
+/* 移动端卡片流 */
+.card-list-stream {
+  display: grid;
+  gap: 12px;
+}
+.mobile-card-item {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 16px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.03);
+}
+.mobile-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  border-bottom: 1px dashed var(--line);
+  padding-bottom: 12px;
+  margin-bottom: 12px;
+}
+.mobile-code-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.mobile-card-code {
+  font-family: ui-monospace, monospace;
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--ink);
+  letter-spacing: .03em;
+  user-select: all;
+}
+.mobile-card-plan {
+  font-size: 12px;
+  color: var(--muted);
+}
+.mobile-copy-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--blue-soft);
+  color: var(--blue);
+  border: 1px solid rgba(23,105,224,.18);
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.mobile-copy-btn svg {
+  width: 15px;
+  height: 15px;
+}
+.mobile-card-body {
+  display: grid;
+  gap: 8px;
+  font-size: 13px;
+}
+.mobile-info-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.info-label {
+  color: var(--muted);
+}
+.mobile-card-footer {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.mobile-action-btn {
+  flex: 1;
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--ink);
+}
+.mobile-action-btn.danger {
+  color: var(--danger);
+  border-color: rgba(198,61,54,.3);
+  background: var(--danger-soft);
+}
+.mobile-action-btn.warning {
+  color: var(--saffron);
+  border-color: rgba(215,141,20,.3);
+  background: #fff8eb;
+}
+.mobile-action-btn.success {
+  color: var(--mint);
+  border-color: rgba(22,163,122,.3);
+  background: var(--mint-soft);
+}
+
+/* 底部分页条 */
+.pagination-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 20px;
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+}
+.pagination-info {
+  font-size: 13px;
+  color: var(--muted);
+}
+.pagination-btns {
+  display: flex;
+  gap: 8px;
+}
+
+/* 生成结果弹窗 */
+.generated-result-modal {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.result-summary {
+  font-size: 14px;
+  color: var(--ink);
+  line-height: 1.5;
+}
+.result-summary strong {
+  color: var(--mint);
+  font-size: 17px;
+}
+.generated-textarea {
+  width: 100%;
+  font-family: ui-monospace, monospace;
+  font-size: 14px;
+  padding: 12px;
+  background: #f8fafc;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  line-height: 1.6;
+}
+.empty-state {
+  padding: 48px 20px;
+  text-align: center;
+  color: var(--muted);
+}
+.empty-icon {
+  font-size: 40px;
+  margin-bottom: 12px;
+}
+
+/* 移动端断点适配 (<= 768px) */
+@media (max-width: 768px) {
+  .desktop-only { display: none !important; }
+  .mobile-only { display: block !important; }
+  
+  .card-stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+  .stat-pill {
+    padding: 10px 12px;
+  }
+  .stat-pill strong {
+    font-size: 22px;
+  }
+  
+  .card-filter-bar {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .search-input-wrap {
+    grid-column: 1 / -1;
+  }
+  .filter-actions {
+    grid-column: 1 / -1;
+    display: flex;
+    gap: 8px;
+  }
+  .filter-actions .search-btn {
+    flex: 1;
+  }
+  
+  .batch-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  .batch-actions {
+    display: flex;
+    flex-wrap: wrap;
+  }
+  .batch-actions .button {
+    flex: 1;
+  }
+  
+  .pagination-bar {
+    flex-direction: column;
+    gap: 12px;
+    text-align: center;
+  }
+  .pagination-btns {
+    width: 100%;
+  }
+  .pagination-btns .button {
+    flex: 1;
+    min-height: 42px;
+  }
+}
+

@@ -9,6 +9,25 @@ const { normalizeProductInput, normalizePlanInput, cardPrefix } = require("./lib
 
 const PORT = Number(process.env.PORT || 3100)
 const ROOT = __dirname
+
+// 自动加载 .env 配置文件
+try {
+  const envPath = path.join(ROOT, ".env")
+  if (fs.existsSync(envPath)) {
+    const envLines = fs.readFileSync(envPath, "utf8").split("\n")
+    for (const line of envLines) {
+      const trimmed = line.trim()
+      if (!trimmed || trimmed.startsWith("#")) continue
+      const eqIdx = trimmed.indexOf("=")
+      if (eqIdx > 0) {
+        const k = trimmed.slice(0, eqIdx).trim()
+        const v = trimmed.slice(eqIdx + 1).trim()
+        if (!process.env[k]) process.env[k] = v
+      }
+    }
+  }
+} catch (_) {}
+
 const SESSION_COOKIE = "admin_session"
 const SESSION_LIFETIME_MS = 12 * 60 * 60 * 1000
 const pool = process.env.DATABASE_URL ? new Pool({ connectionString: process.env.DATABASE_URL, max: 8 }) : null
@@ -209,10 +228,48 @@ async function adminRoute(req, res, url, data) {
   if (url.pathname === "/api/admin/cards" && req.method === "GET") {
     const productId = String(url.searchParams.get("productId") || "")
     const status = String(url.searchParams.get("status") || "")
-    const keyword = normalizeCard(url.searchParams.get("keyword") || "")
+    const keyword = String(url.searchParams.get("keyword") || "").trim()
+    const kwNorm = normalizeCard(keyword)
+    const kwLike = `%${kwNorm}%`
     const page = Math.max(1, Number.parseInt(url.searchParams.get("page"), 10) || 1)
-    const result = await query("select c.*,p.name product_name,pp.name plan_name,cb.batch_name,count(*) over()::int total from app_cards c join app_products p on p.id=c.product_id left join product_plans pp on pp.id=c.plan_id left join card_batches cb on cb.id=c.batch_id where ($1='' or c.product_id=$1) and ($2='' or c.status=$2) and ($3='' or c.card_code=$3 or c.bound_device_code=$3 or c.activation_code=$3) order by c.created_at desc limit 40 offset $4", [productId, status, keyword, (page - 1) * 40])
-    return json(res, 200, { ok: true, cards: result.rows, total: result.rows[0]?.total || 0, page })
+    const pageSize = Math.min(100, Math.max(10, Number.parseInt(url.searchParams.get("pageSize"), 10) || 20))
+    const offset = (page - 1) * pageSize
+
+    const result = await query(
+      `select c.*, p.name product_name, pp.name plan_name, cb.batch_name, count(*) over()::int total
+       from app_cards c
+       join app_products p on p.id=c.product_id
+       left join product_plans pp on pp.id=c.plan_id
+       left join card_batches cb on cb.id=c.batch_id
+       where ($1='' or c.product_id=$1)
+         and ($2='' or c.status=$2)
+         and ($3='' or c.card_code ilike $4 or c.bound_device_code ilike $4 or c.activation_code ilike $4 or cb.batch_name ilike $4)
+       order by c.created_at desc
+       limit $5 offset $6`,
+      [productId, status, kwNorm, kwLike, pageSize, offset]
+    )
+
+    const statsResult = await query(
+      `select
+         count(*)::int as total,
+         count(*) filter (where status='new')::int as new_count,
+         count(*) filter (where status='used')::int as used_count,
+         count(*) filter (where status='disabled')::int as disabled_count,
+         count(*) filter (where status='revoked')::int as revoked_count
+       from app_cards
+       where ($1='' or product_id=$1)`,
+      [productId]
+    )
+    const stats = statsResult.rows[0] || { total: 0, new_count: 0, used_count: 0, disabled_count: 0, revoked_count: 0 }
+
+    return json(res, 200, {
+      ok: true,
+      cards: result.rows,
+      total: result.rows[0]?.total || 0,
+      page,
+      pageSize,
+      stats
+    })
   }
   if (url.pathname === "/api/admin/generate-cards" && req.method === "POST") return generateCards(req, res, data)
   if (url.pathname === "/api/admin/import-cards" && req.method === "POST") return importCards(req, res, data)
@@ -230,6 +287,14 @@ async function adminRoute(req, res, url, data) {
     if (!result.rows.length) return json(res, 404, { ok: false, message: "卡密不存在" })
     await audit(req, "card.status_changed", "card", data.id, { status: next })
     return json(res, 200, { ok: true })
+  }
+  if (url.pathname === "/api/admin/batch-card-status" && req.method === "POST") {
+    const ids = Array.isArray(data.ids) ? data.ids.filter(Boolean) : []
+    const next = ["new", "revoked", "disabled"].includes(data.status) ? data.status : "disabled"
+    if (!ids.length) return json(res, 400, { ok: false, message: "请选择要操作的卡密" })
+    await query("update app_cards set status=$1,updated_at=now() where id=any($2)", [next, ids])
+    await audit(req, "cards.batch_status_changed", "cards", ids.join(","), { count: ids.length, status: next })
+    return json(res, 200, { ok: true, count: ids.length })
   }
   if (url.pathname === "/api/admin/activations" && req.method === "GET") {
     const result = await query("select a.*,p.name product_name from app_activations a join app_products p on p.id=a.product_id order by a.created_at desc limit 100")

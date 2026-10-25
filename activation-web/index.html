@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#f5f7fa"><meta name="description" content="腕上应用库：发现、购买和激活独立开发的小米手环应用。">
-  <title>腕上应用库</title><link rel="stylesheet" href="/app.css?v=20260819-3">
+  <title>腕上应用库</title><link rel="stylesheet" href="/app.css?v=20261025-1">
 </head>
 <body>
 <a class="skip-link" href="#main">跳到主要内容</a>
@@ -25,7 +25,64 @@
       <div class="admin-workspace"><header class="admin-header"><button class="icon-button admin-menu" id="adminMenu" data-icon="menu" aria-label="打开后台菜单"></button><div><p>小米手环应用运营台</p><h1 id="adminViewTitle">概览</h1></div><button class="icon-button" id="refreshAdmin" data-icon="refresh-cw" aria-label="刷新"></button></header><div class="admin-content">
         <section class="admin-view active" data-admin-panel="overview"><div id="summaryGrid" class="metric-grid"></div><div class="dashboard-grid"><div class="surface work-panel"><div class="panel-heading"><div><h2>卡密库存</h2><p>按应用查看可用与已使用数量</p></div><button class="text-button" data-admin-jump="cards">管理卡密</button></div><div id="inventoryBars"></div></div><div class="surface work-panel"><div class="panel-heading"><div><h2>最近活动</h2><p>关键后台操作记录</p></div></div><div id="recentActivity" class="activity-list"></div></div></div></section>
         <section class="admin-view" data-admin-panel="products"><div class="panel-heading page-tools"><div><h2>应用和套餐</h2><p>产品资料由数据库统一驱动，不再写死在代码中。</p></div><button class="button primary" id="newProduct" data-icon="plus">新增应用</button></div><div id="adminProductTable" class="table-surface"></div><div class="surface plan-panel"><div class="panel-heading"><div><h2>激活套餐</h2><p>每个 APP 可有独立前缀、有效期和设备数量。</p></div><button class="button secondary" id="newPlan" data-icon="plus">新增套餐</button></div><div id="planTable"></div></div></section>
-        <section class="admin-view" data-admin-panel="cards"><div class="panel-heading page-tools"><div><h2>卡密中心</h2><p>按应用、套餐、批次和状态管理。</p></div><div class="actions"><button class="button secondary" id="importCardsButton" data-icon="upload">导入</button><button class="button primary" id="generateCardsButton" data-icon="sparkles">生成卡密</button></div></div><form id="cardFilters" class="filter-bar"><select id="cardProductFilter"><option value="">全部应用</option></select><select id="cardStatusFilter"><option value="">全部状态</option><option value="new">可用</option><option value="used">已使用</option><option value="revoked">已撤销</option><option value="disabled">已停用</option></select><input id="cardKeyword" type="search" placeholder="卡密、设备码或激活码"><button class="button secondary" type="submit" data-icon="search">查询</button></form><div id="cardTable" class="table-surface"></div></section>
+        <section class="admin-view" data-admin-panel="cards">
+          <div class="panel-heading page-tools">
+            <div>
+              <h2>卡密中心</h2>
+              <p>管理手环应用激活卡密、批量生成与实时核销状态。</p>
+            </div>
+            <div class="actions">
+              <button class="button secondary" id="importCardsButton" data-icon="upload">导入卡密</button>
+              <button class="button primary" id="generateCardsButton" data-icon="sparkles">生成卡密</button>
+            </div>
+          </div>
+          <div id="cardStatsBar" class="card-stats-grid">
+            <div class="stat-pill active" data-stat-filter="">
+              <span class="stat-label">全部卡密</span>
+              <strong id="statTotal">0</strong>
+            </div>
+            <div class="stat-pill pill-new" data-stat-filter="new">
+              <span class="stat-label">可用库存</span>
+              <strong id="statNew">0</strong>
+            </div>
+            <div class="stat-pill pill-used" data-stat-filter="used">
+              <span class="stat-label">已激活</span>
+              <strong id="statUsed">0</strong>
+            </div>
+            <div class="stat-pill pill-disabled" data-stat-filter="disabled">
+              <span class="stat-label">已停用/撤销</span>
+              <strong id="statDisabled">0</strong>
+            </div>
+          </div>
+          <form id="cardFilters" class="filter-bar card-filter-bar">
+            <select id="cardProductFilter"><option value="">全部应用</option></select>
+            <select id="cardStatusFilter">
+              <option value="">全部状态</option>
+              <option value="new">🟢 可用</option>
+              <option value="used">⚪ 已使用</option>
+              <option value="disabled">🔴 已停用</option>
+              <option value="revoked">⚠️ 已撤销</option>
+            </select>
+            <div class="search-input-wrap">
+              <input id="cardKeyword" type="search" placeholder="输入卡密、设备码、批次搜索...">
+            </div>
+            <div class="filter-actions">
+              <button class="button primary search-btn" type="submit" data-icon="search">查询</button>
+              <button class="button ghost" id="resetCardFiltersBtn" type="button">重置</button>
+            </div>
+          </form>
+          <div id="cardBatchBar" class="batch-bar" hidden>
+            <div class="batch-info">已选 <strong id="selectedCardCount">0</strong> 张卡密</div>
+            <div class="batch-actions">
+              <button class="button secondary btn-sm" id="batchCopyBtn" type="button" data-icon="copy">批量复制</button>
+              <button class="button danger btn-sm" id="batchDisableBtn" type="button">批量停用</button>
+              <button class="button ghost btn-sm" id="batchCancelBtn" type="button">取消选择</button>
+            </div>
+          </div>
+          <div id="cardTable" class="table-surface desktop-only"></div>
+          <div id="cardMobileList" class="mobile-only card-list-stream"></div>
+          <div id="cardPagination" class="pagination-bar"></div>
+        </section>
         <section class="admin-view" data-admin-panel="activations"><div class="panel-heading page-tools"><div><h2>激活记录</h2><p>保留每次激活结果，不通过删除记录进行重置。</p></div></div><div id="activationTable" class="table-surface"></div></section>
         <section class="admin-view" data-admin-panel="orders"><div class="panel-heading page-tools"><div><h2>订单与收入</h2><p>爱发电和手工订单统一查看。</p></div></div><div id="orderTable" class="table-surface"></div></section>
         <section class="admin-view" data-admin-panel="security"><div class="security-grid"><form id="changeSecretForm" class="surface work-panel"><div class="panel-heading"><div><h2>修改管理员密钥</h2><p>修改后，所有浏览器会话会立即退出。</p></div></div><label for="currentSecret">当前密钥</label><input id="currentSecret" type="password" autocomplete="current-password" required><label for="newSecret">新密钥</label><input id="newSecret" type="password" autocomplete="new-password" minlength="12" maxlength="128" required><label for="confirmSecret">确认新密钥</label><input id="confirmSecret" type="password" autocomplete="new-password" minlength="12" maxlength="128" required><button class="button danger" type="submit">更新密钥并退出</button><div id="securityMessage" class="message" role="alert"></div></form><div class="surface work-panel"><div class="panel-heading"><div><h2>安全原则</h2><p>后台不会再次显示当前密钥。</p></div></div><ul class="security-list"><li><strong>哈希存储</strong><span>数据库只保存 scrypt 哈希</span></li><li><strong>安全会话</strong><span>HttpOnly Cookie，12 小时自动失效</span></li><li><strong>操作审计</strong><span>关键操作均留痕</span></li></ul><button id="loadAudit" class="button secondary">查看审计记录</button><div id="auditTable" class="mini-table"></div></div></div></section>
@@ -35,6 +92,6 @@
   </section>
 </main>
 <div id="modal" class="modal" hidden><div class="modal-backdrop" data-modal-close></div><div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="modalTitle"><div class="modal-head"><h2 id="modalTitle"></h2><button class="icon-button" data-modal-close data-icon="x" aria-label="关闭"></button></div><div id="modalBody"></div></div></div><div id="toastRegion" class="toast-region" aria-live="polite"></div>
-<script src="/app.js?v=20260819-3" defer></script>
+<script src="/app.js?v=20261025-1" defer></script>
 </body>
 </html>
