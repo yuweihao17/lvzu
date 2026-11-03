@@ -4,7 +4,5 @@
 /sign
 /dist
 /build
-.husky/
 .vercel
 .vscode/
-supabase/.temp/
