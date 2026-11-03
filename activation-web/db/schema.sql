@@ -154,21 +154,26 @@ create index if not exists idx_card_batches_plan on card_batches(plan_id);
 create index if not exists idx_admin_sessions_expiry on admin_sessions(expires_at);
 create index if not exists idx_admin_audit_created on admin_audit_logs(created_at desc);
 
-insert into app_products (id, name, category, description, purchase_url, price_label, prefix, accent, status, sort_order)
+-- 播种只补齐缺失的商品，绝不覆盖后台已经编辑过的字段。
+-- （服务每次启动都会执行本文件；若用 on conflict do update，后台改的商品名/价格/链接/状态
+--   会在重启后被种子值覆盖回去。）
+insert into app_products (id, name, category, description, purchase_url, price_label, prefix, accent, status, sort_order, activation_salt)
 values
-  ('lvzu_lingqian', '吕祖灵签', '心灵与生活', '在小米手环上随时抽取灵签，获得简洁、安静的每日指引。', 'https://www.ifdian.net/item/3f67aea8590111f1bb3652540025c377', '免费激活', 'LZ', 'saffron', 'available', 10),
-  ('qimen_dunjia', '玄枢奇门', '玄学工具', '在手环上随时起局排盘，查看九宫八门九星、十干克应与时局吉凶建议。', 'https://afdian.com/item/e12878f0d79e11f19117525400c8052f', '免费激活', 'QM', 'blue', 'available', 15),
-  ('focus_timer', '专注计时器', '效率工具', '为小米手环设计的轻量番茄钟，抬腕即可开始、暂停和查看进度。', '#', '即将上线', 'FT', 'blue', 'coming_soon', 20),
-  ('habit_ring', '习惯环', '健康管理', '用清晰的环形进度追踪每日习惯，让坚持变成一眼可见的反馈。', '#', '即将上线', 'HR', 'mint', 'coming_soon', 30)
-on conflict (id) do update set name=excluded.name, category=excluded.category, description=excluded.description, purchase_url=excluded.purchase_url, price_label=excluded.price_label, prefix=excluded.prefix, accent=excluded.accent, status=excluded.status, sort_order=excluded.sort_order, updated_at=now();
+  ('lvzu_lingqian', '吕祖灵签', '心灵与生活', '在小米手环上随时抽取灵签，获得简洁、安静的每日指引。', 'https://www.ifdian.net/item/3f67aea8590111f1bb3652540025c377', '免费激活', 'LZ', 'saffron', 'available', 10, ''),
+  ('qimen_dunjia', '玄枢奇门', '玄学工具', '在手环上随时起局排盘，查看九宫八门九星、十干克应与时局吉凶建议。', 'https://afdian.com/item/e12878f0d79e11f19117525400c8052f', '免费激活', 'QM', 'blue', 'available', 15, 'qimen-dunjia-vela-band10-salt-2026'),
+  ('focus_timer', '专注计时器', '效率工具', '为小米手环设计的轻量番茄钟，抬腕即可开始、暂停和查看进度。', '#', '即将上线', 'FT', 'blue', 'coming_soon', 20, ''),
+  ('habit_ring', '习惯环', '健康管理', '用清晰的环形进度追踪每日习惯，让坚持变成一眼可见的反馈。', '#', '即将上线', 'HR', 'mint', 'coming_soon', 30, '')
+on conflict (id) do nothing;
 
--- 每应用独立激活盐：留空则回退全局 ACTIVATION_SALT（吕祖灵签即如此，保持原值不动）。
-update app_products set activation_salt='qimen-dunjia-vela-band10-salt-2026', updated_at=now() where id='qimen_dunjia';
+-- 每应用独立激活盐：留空则回退全局 ACTIVATION_SALT（吕祖灵签即如此）。
+-- 只给「已有行但盐为空」的老库补值，不覆盖后台设置过的盐。
+update app_products set activation_salt='qimen-dunjia-vela-band10-salt-2026', updated_at=now()
+where id='qimen_dunjia' and activation_salt='';
 
 insert into product_plans (product_id, name, prefix, duration_days, max_devices, max_activations, status)
 select id, '永久版', prefix, 0, 1, 1, 'active'
 from app_products
-on conflict (product_id, name) do update set prefix=excluded.prefix, updated_at=now();
+on conflict (product_id, name) do nothing;
 
 update app_cards c
 set plan_id = p.id
