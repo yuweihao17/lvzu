@@ -81,18 +81,31 @@ function productDto(row) {
   }
 }
 
+// 含激活盐，仅用于内部激活计算与管理员接口；绝不能出现在公开 /api/products 响应里。
+function adminProductDto(row) {
+  return {
+    ...productDto(row),
+    activationSalt: row.activation_salt || ""
+  }
+}
+
 async function products(includeHidden = false) {
   const result = await query(`select * from app_products ${includeHidden ? "" : "where status <> 'hidden'"} order by sort_order, created_at`)
   return result.rows.map(productDto)
 }
 
+async function adminProducts(includeHidden = false) {
+  const result = await query(`select * from app_products ${includeHidden ? "" : "where status <> 'hidden'"} order by sort_order, created_at`)
+  return result.rows.map(adminProductDto)
+}
+
 async function productOf(id) {
   const result = await query("select * from app_products where id=$1 limit 1", [String(id || "")])
-  return result.rows[0] ? productDto(result.rows[0]) : null
+  return result.rows[0] ? adminProductDto(result.rows[0]) : null
 }
 
 function activationCode(product, device) {
-  const salt = process.env.ACTIVATION_SALT || (process.env.NODE_ENV === "production" ? "" : "xiaomi-app-store-local-development")
+  const salt = product.activationSalt || process.env.ACTIVATION_SALT || (process.env.NODE_ENV === "production" ? "" : "xiaomi-app-store-local-development")
   return makeActivationCode({
     salt,
     productId: product.id,
@@ -208,10 +221,10 @@ async function adminRoute(req, res, url, data) {
     return json(res, 200, { ok: true }, { "set-cookie": sessionCookie("", 0) })
   }
   if (url.pathname === "/api/admin/summary" && req.method === "GET") return json(res, 200, { ok: true, summary: await adminSummary() })
-  if (url.pathname === "/api/admin/products" && req.method === "GET") return json(res, 200, { ok: true, products: await products(true) })
+  if (url.pathname === "/api/admin/products" && req.method === "GET") return json(res, 200, { ok: true, products: await adminProducts(true) })
   if (url.pathname === "/api/admin/products" && req.method === "POST") {
     const item = normalizeProductInput(data)
-    await query(`insert into app_products(id,name,category,description,purchase_url,price_label,prefix,accent,status,sort_order) values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) on conflict(id) do update set name=excluded.name,category=excluded.category,description=excluded.description,purchase_url=excluded.purchase_url,price_label=excluded.price_label,prefix=excluded.prefix,accent=excluded.accent,status=excluded.status,sort_order=excluded.sort_order,updated_at=now()`, [item.id, item.name, item.category, item.description, item.purchaseUrl, item.priceLabel, cardPrefix(data.prefix), item.accent, item.status, item.sortOrder])
+    await query(`insert into app_products(id,name,category,description,purchase_url,price_label,prefix,accent,status,sort_order,activation_salt) values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) on conflict(id) do update set name=excluded.name,category=excluded.category,description=excluded.description,purchase_url=excluded.purchase_url,price_label=excluded.price_label,prefix=excluded.prefix,accent=excluded.accent,status=excluded.status,sort_order=excluded.sort_order,activation_salt=excluded.activation_salt,updated_at=now()`, [item.id, item.name, item.category, item.description, item.purchaseUrl, item.priceLabel, cardPrefix(data.prefix), item.accent, item.status, item.sortOrder, item.activationSalt])
     await audit(req, "product.saved", "product", item.id)
     return json(res, 200, { ok: true, product: item })
   }

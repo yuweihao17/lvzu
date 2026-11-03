@@ -15,11 +15,14 @@ assert.deepStrictEqual(normalizeProductInput({
   priceLabel: "",
   accent: "blue",
   status: "available",
-  sortOrder: 12
+  sortOrder: 12,
+  activationSalt: ""
 })
 
 assert.throws(() => normalizeProductInput({ id: "坏 ID", name: "测试" }), /产品 ID/)
 assert.throws(() => normalizeProductInput({ id: "test", name: "" }), /产品名称/)
+assert.strictEqual(normalizeProductInput({ id: "qimen_dunjia", name: "玄枢奇门", activationSalt: "  qimen-salt-2026  " }).activationSalt, "qimen-salt-2026")
+assert.throws(() => normalizeProductInput({ id: "test", name: "测试", activationSalt: "short" }), /激活盐/)
 
 assert.deepStrictEqual(normalizePlanInput({
   productId: "lvzu_lingqian",

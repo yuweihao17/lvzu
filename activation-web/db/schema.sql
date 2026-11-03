@@ -11,9 +11,12 @@ create table if not exists app_products (
   accent text not null default 'blue',
   status text not null default 'available' check (status in ('available','coming_soon','hidden')),
   sort_order integer not null default 100,
+  activation_salt text not null default '',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table app_products add column if not exists activation_salt text not null default '';
 
 create table if not exists product_plans (
   id uuid primary key default gen_random_uuid(),
@@ -154,9 +157,13 @@ create index if not exists idx_admin_audit_created on admin_audit_logs(created_a
 insert into app_products (id, name, category, description, purchase_url, price_label, prefix, accent, status, sort_order)
 values
   ('lvzu_lingqian', '吕祖灵签', '心灵与生活', '在小米手环上随时抽取灵签，获得简洁、安静的每日指引。', 'https://www.ifdian.net/item/3f67aea8590111f1bb3652540025c377', '免费激活', 'LZ', 'saffron', 'available', 10),
+  ('qimen_dunjia', '玄枢奇门', '玄学工具', '在手环上随时起局排盘，查看九宫八门九星、十干克应与时局吉凶建议。', 'https://afdian.com/item/e12878f0d79e11f19117525400c8052f', '免费激活', 'QM', 'blue', 'available', 15),
   ('focus_timer', '专注计时器', '效率工具', '为小米手环设计的轻量番茄钟，抬腕即可开始、暂停和查看进度。', '#', '即将上线', 'FT', 'blue', 'coming_soon', 20),
   ('habit_ring', '习惯环', '健康管理', '用清晰的环形进度追踪每日习惯，让坚持变成一眼可见的反馈。', '#', '即将上线', 'HR', 'mint', 'coming_soon', 30)
 on conflict (id) do update set name=excluded.name, category=excluded.category, description=excluded.description, purchase_url=excluded.purchase_url, price_label=excluded.price_label, prefix=excluded.prefix, accent=excluded.accent, status=excluded.status, sort_order=excluded.sort_order, updated_at=now();
+
+-- 每应用独立激活盐：留空则回退全局 ACTIVATION_SALT（吕祖灵签即如此，保持原值不动）。
+update app_products set activation_salt='qimen-dunjia-vela-band10-salt-2026', updated_at=now() where id='qimen_dunjia';
 
 insert into product_plans (product_id, name, prefix, duration_days, max_devices, max_activations, status)
 select id, '永久版', prefix, 0, 1, 1, 'active'

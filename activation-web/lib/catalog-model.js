@@ -14,6 +14,8 @@ function normalizeProductInput(data = {}) {
   if (!/^[a-z0-9][a-z0-9_-]{1,63}$/.test(id)) throw new Error("产品 ID 只能使用 2-64 位小写字母、数字、下划线或连字符")
   if (!name) throw new Error("请输入产品名称")
   const status = ["available", "coming_soon", "hidden"].includes(data.status) ? data.status : "coming_soon"
+  const activationSalt = clean(data.activationSalt)
+  if (activationSalt && activationSalt.length < 8) throw new Error("激活盐至少 8 位，留空则使用全局 ACTIVATION_SALT")
   return {
     id,
     name,
@@ -23,7 +25,8 @@ function normalizeProductInput(data = {}) {
     priceLabel: clean(data.priceLabel),
     accent: ["blue", "saffron", "mint", "coral"].includes(data.accent) ? data.accent : "blue",
     status,
-    sortOrder: boundedInteger(data.sortOrder, 100, 0, 10000)
+    sortOrder: boundedInteger(data.sortOrder, 100, 0, 10000),
+    activationSalt
   }
 }
 
