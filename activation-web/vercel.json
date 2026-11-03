@@ -1,9 +1,0 @@
-{
-  "version": 2,
-  "rewrites": [
-    {
-      "source": "/:path*",
-      "destination": "http://123.60.20.133:3100/:path*"
-    }
-  ]
-}
